@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hand Gesture Recognition with p5.js</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="info">
+            <h1>Hand Gesture Recognition</h1>
+            <p>No pinch detected</p>
+            <p>Make a pinch gesture with your thumb and index finger to grab the blue object!</p>
+        </div>
+        
+        <div class="video-container">
+            <video class="input_video" autoplay muted playsinline></video>
+            <div id="camera-status" style="color: white; margin-top: 10px;">Camera: Waiting for permission...</div>
+            <button id="enable-camera" style="margin-top: 10px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">🔓 Allow Camera Access</button>
+            <div id="camera-help" style="color: #ffd700; margin-top: 10px; font-size: 14px; display: none;">
+                💡 If camera doesn't work, check your browser's camera permissions or try refreshing the page.
+            </div>
+        </div>
+        
+        <div class="canvas-container" id="canvas-container">
+            <!-- p5.js canvas will be inserted here -->
+        </div>
+    </div>
+    
+    <script src="sketch.js"></script>
+</body>
+</html> 
