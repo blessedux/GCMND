@@ -219,6 +219,12 @@ Transform the web-based hand gesture recognition app into a full computer contro
 - [x] Camera permission handling
 - [x] Basic UI and styling
 - [x] Demo mode for testing
+- [x] Multi-hand gesture recognition (left/right hand tracking)
+- [x] Enhanced gesture detection (pinch, fist, open hand, pointing, victory)
+- [x] Next.js refactor with TypeScript
+- [x] Clean, centered UI without scrolling
+- [x] Real-time hand landmark visualization
+- [x] Privacy mode (no video storage)
 
 ### In Progress
 
@@ -227,7 +233,7 @@ Transform the web-based hand gesture recognition app into a full computer contro
 ### Next Up
 
 - [ ] Gesture recording system
-- [ ] Electron integration
+- [ ] Electron integration for desktop app
 - [ ] Mouse control implementation
 
 ## Current Focus: Task 1.2 - Gesture Recording System

@@ -93,7 +93,7 @@ function draw() {
   const lineLength = gestureConfidence * 300;
   line(0, 0, lineLength, 0);
   
-  // Update status text with gesture information
+  // Update status text with multi-hand gesture information
   const gestureDisplayName = {
     "pinch": "Pinch",
     "fist": "Fist", 
@@ -103,10 +103,31 @@ function draw() {
     "None": "No Gesture"
   };
   
-  const confidencePercent = Math.round(gestureConfidence * 100);
-  let statusText = `${gestureDisplayName[currentGesture]} (${confidencePercent}% confidence)`;
+  let statusText = "";
   
-  // Add debug info for open hand
+  // Left hand status
+  if (leftHand) {
+    const leftConfidence = Math.round(leftHandConfidence * 100);
+    statusText += `Left: ${gestureDisplayName[leftHandGesture]} (${leftConfidence}%)`;
+  } else {
+    statusText += "Left: Not detected";
+  }
+  
+  statusText += " | ";
+  
+  // Right hand status
+  if (rightHand) {
+    const rightConfidence = Math.round(rightHandConfidence * 100);
+    statusText += `Right: ${gestureDisplayName[rightHandGesture]} (${rightConfidence}%)`;
+  } else {
+    statusText += "Right: Not detected";
+  }
+  
+  // Add total hands detected
+  const totalHands = (leftHand ? 1 : 0) + (rightHand ? 1 : 0);
+  statusText += ` | Hands: ${totalHands}/2`;
+  
+  // Add debug info for open hand (legacy)
   if (lastGesture && lastGesture.openHand) {
     statusText += ` | Open Hand: ${lastGesture.openHand.extendedFingers}/4 fingers, dist: ${lastGesture.openHand.distance.toFixed(3)}`;
   }
@@ -123,9 +144,9 @@ function draw() {
   
   document.querySelector(".info").querySelector("p").innerHTML = statusText;
   
-  // Show/hide open hand indicator
+  // Show/hide open hand indicator for either hand
   const openHandIndicator = document.getElementById('open-hand-indicator');
-  if (currentGesture === "openHand") {
+  if (leftHandGesture === "openHand" || rightHandGesture === "openHand") {
     openHandIndicator.style.display = 'block';
   } else {
     openHandIndicator.style.display = 'none';
@@ -203,21 +224,63 @@ function draw() {
 }
 
 function displayResults() {
+  // Always show hand landmarks when available - more stable rendering
   if (lmResults) {
-    for (let i = 0; i < lm.length; i++) {
-      strokeWeight(5);
-      stroke(0, 255, 0);
-      /* non mirrored version  uncomment if wanting to use  this */
-      //point(lm[i].x*width - width/2,lm[i].y*height -height/2, lm[i].z);
-      //text(i,lm[i].x*width - width/2,lm[i].y*height -height/2 );
-      /* non mirrored version */
-      point(
-        lm[i].x * width - width / 2,
-        lm[i].y * height - height / 2,
-        lm[i].z
-      );
-      text(i, lm[i].x * width - width / 2 + 4, lm[i].y * height - height / 2);
+    // Draw left hand landmarks (green)
+    if (leftHand && leftHand.length > 0) {
+      for (let i = 0; i < leftHand.length; i++) {
+        // Draw points only - no vectors or lines
+        strokeWeight(8);
+        stroke(0, 255, 0, 200); // Green with some transparency
+        point(
+          leftHand[i].x * width - width / 2,
+          leftHand[i].y * height - height / 2,
+          leftHand[i].z
+        );
+        
+        // Draw landmark numbers - ensure they're visible
+        push();
+        strokeWeight(2);
+        stroke(0, 0, 0, 200); // Black outline for text
+        fill(255, 255, 255, 255); // Solid white text
+        textSize(12);
+        textAlign(CENTER);
+        text(i, leftHand[i].x * width - width / 2, leftHand[i].y * height - height / 2 - 15);
+        pop();
+      }
     }
+    
+    // Draw right hand landmarks (blue)
+    if (rightHand && rightHand.length > 0) {
+      for (let i = 0; i < rightHand.length; i++) {
+        // Draw points only - no vectors or lines
+        strokeWeight(8);
+        stroke(0, 0, 255, 200); // Blue with some transparency
+        point(
+          rightHand[i].x * width - width / 2,
+          rightHand[i].y * height - height / 2,
+          rightHand[i].z
+        );
+        
+        // Draw landmark numbers - ensure they're visible
+        push();
+        strokeWeight(2);
+        stroke(0, 0, 0, 200); // Black outline for text
+        fill(255, 255, 255, 255); // Solid white text
+        textSize(12);
+        textAlign(CENTER);
+        text(i, rightHand[i].x * width - width / 2, rightHand[i].y * height - height / 2 - 15);
+        pop();
+      }
+    }
+  } else {
+    // Show "No hand detected" message when no landmarks
+    push();
+    fill(255, 255, 255, 100);
+    textAlign(CENTER);
+    textSize(16);
+    text("No hand detected", 0, 0);
+    pop();
   }
 }
 
@@ -228,14 +291,34 @@ function drawGestureDebug() {
   textSize(14);
   
   let yPos = -height/2 + 20;
-  text("Gesture Debug Info:", -width/2 + 10, yPos);
+  text("Multi-Hand Gesture Debug:", -width/2 + 10, yPos);
   yPos += 20;
   
-  text(`Current: ${currentGesture}`, -width/2 + 10, yPos);
+  // Left hand info
+  if (leftHand) {
+    text(`Left Hand: ${leftHandGesture} (${Math.round(leftHandConfidence * 100)}%)`, -width/2 + 10, yPos);
+    yPos += 15;
+  } else {
+    text("Left Hand: Not detected", -width/2 + 10, yPos);
+    yPos += 15;
+  }
+  
+  // Right hand info
+  if (rightHand) {
+    text(`Right Hand: ${rightHandGesture} (${Math.round(rightHandConfidence * 100)}%)`, -width/2 + 10, yPos);
+    yPos += 15;
+  } else {
+    text("Right Hand: Not detected", -width/2 + 10, yPos);
+    yPos += 15;
+  }
+  
+  // Combined info
+  yPos += 10;
+  text(`Primary: ${currentGesture}`, -width/2 + 10, yPos);
   yPos += 15;
   text(`Confidence: ${Math.round(gestureConfidence * 100)}%`, -width/2 + 10, yPos);
   yPos += 15;
-  text(`History: ${gestureHistory.join(', ')}`, -width/2 + 10, yPos);
+  text(`Hands Detected: ${(leftHand ? 1 : 0) + (rightHand ? 1 : 0)}`, -width/2 + 10, yPos);
   
   pop();
 }
@@ -252,56 +335,105 @@ function drawPrivacyIndicator() {
   pop();
 }
 
-let lm = [];
+// Global variables for multiple hands
+let lm = []; // Keep for backward compatibility
+let leftHand = null;
+let rightHand = null;
+let leftHandGesture = "None";
+let rightHandGesture = "None";
+let leftHandConfidence = 0;
+let rightHandConfidence = 0;
+
 function onResults(results) {
   if (results.multiHandLandmarks) {
     lmResults = true;
-    for (const landmarks of results.multiHandLandmarks) {
-      lm = landmarks;
+    
+    // Reset hands
+    leftHand = null;
+    rightHand = null;
+    leftHandGesture = "None";
+    rightHandGesture = "None";
+    leftHandConfidence = 0;
+    rightHandConfidence = 0;
+    
+    // Process each hand
+    for (let i = 0; i < results.multiHandLandmarks.length; i++) {
+      const landmarks = results.multiHandLandmarks[i];
+      const handedness = results.multiHandedness ? results.multiHandedness[i] : null;
       
-      // Use original landmarks for gesture detection (visual display is already mirrored)
-      const gestureResult = detectAllGestures(landmarks);
-      currentGesture = gestureResult.gesture;
-      gestureConfidence = gestureResult.confidence;
+      // Determine which hand this is
+      const isLeftHand = handedness && handedness.label === 'Left';
+      const isRightHand = handedness && handedness.label === 'Right';
       
-      // Update gesture history for smoothing
-      gestureHistory.push(currentGesture);
-      if (gestureHistory.length > 5) {
-        gestureHistory.shift();
+      // Store hand data
+      if (isLeftHand || (!isRightHand && leftHand === null)) {
+        leftHand = landmarks;
+        lm = landmarks; // Keep backward compatibility
+        
+        // Process left hand gestures
+        const gestureResult = detectAllGestures(landmarks);
+        leftHandGesture = gestureResult.gesture;
+        leftHandConfidence = gestureResult.confidence;
+        
+        // Update current gesture for backward compatibility
+        currentGesture = leftHandGesture;
+        gestureConfidence = leftHandConfidence;
+        
+        // Legacy pinch detection for backward compatibility
+        compareD = distance(
+          landmarks[8].x,
+          landmarks[8].y,
+          landmarks[4].x,
+          landmarks[4].y
+        );
+        
+        if (compareD <= 0.01) {
+          xy[0] = (landmarks[4].x + landmarks[8].x) / 2;
+          xy[1] = (landmarks[4].y + landmarks[8].y) / 2;
+          xy[2] = landmarks[4].z;
+        }
       }
       
-      // Get most common gesture in recent history (smoothing)
-      const gestureCounts = {};
-      gestureHistory.forEach(gesture => {
-        gestureCounts[gesture] = (gestureCounts[gesture] || 0) + 1;
-      });
-      
-      const mostCommonGesture = Object.keys(gestureCounts).reduce((a, b) => 
-        gestureCounts[a] > gestureCounts[b] ? a : b
-      );
-      
-      if (gestureCounts[mostCommonGesture] >= 3) {
-        currentGesture = mostCommonGesture;
-      }
-      
-      // Legacy pinch detection for backward compatibility
-      compareD = distance(
-        landmarks[8].x,
-        landmarks[8].y,
-        landmarks[4].x,
-        landmarks[4].y
-      );
-      
-      if (compareD <= 0.01) {
-        xy[0] = (landmarks[4].x + landmarks[8].x) / 2;
-        xy[1] = (landmarks[4].y + landmarks[8].y) / 2;
-        xy[2] = landmarks[4].z;
+      if (isRightHand || (!isLeftHand && rightHand === null)) {
+        rightHand = landmarks;
+        
+        // Process right hand gestures
+        const gestureResult = detectAllGestures(landmarks);
+        rightHandGesture = gestureResult.gesture;
+        rightHandConfidence = gestureResult.confidence;
       }
     }
+    
+    // Update gesture history for smoothing (using primary hand)
+    gestureHistory.push(currentGesture);
+    if (gestureHistory.length > 5) {
+      gestureHistory.shift();
+    }
+    
+    // Get most common gesture in recent history (smoothing)
+    const gestureCounts = {};
+    gestureHistory.forEach(gesture => {
+      gestureCounts[gesture] = (gestureCounts[gesture] || 0) + 1;
+    });
+    
+    const mostCommonGesture = Object.keys(gestureCounts).reduce((a, b) => 
+      gestureCounts[a] > gestureCounts[b] ? a : b
+    );
+    
+    if (gestureCounts[mostCommonGesture] >= 3) {
+      currentGesture = mostCommonGesture;
+    }
+    
   } else {
     lmResults = false;
     currentGesture = "None";
     gestureConfidence = 0;
+    leftHand = null;
+    rightHand = null;
+    leftHandGesture = "None";
+    rightHandGesture = "None";
+    leftHandConfidence = 0;
+    rightHandConfidence = 0;
   }
 }
 

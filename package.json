@@ -1,0 +1,37 @@
+{
+  "name": "multi-hand-gesture-recognition",
+  "version": "1.0.0",
+  "description": "Multi-hand gesture recognition app with MediaPipe and p5.js",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^14.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "p5": "^1.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@types/p5": "^1.7.0",
+    "typescript": "^5.0.0",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^14.0.0"
+  },
+  "keywords": [
+    "hand-gesture",
+    "mediapipe",
+    "p5js",
+    "nextjs",
+    "computer-vision",
+    "multi-hand"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+} 
