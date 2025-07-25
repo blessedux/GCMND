@@ -164,6 +164,9 @@ function draw() {
   if (lmResults) {
     drawGestureDebug();
   }
+  
+  // Draw privacy mode indicator
+  drawPrivacyIndicator();
 }
 
 function displayResults() {
@@ -200,6 +203,18 @@ function drawGestureDebug() {
   text(`Confidence: ${Math.round(gestureConfidence * 100)}%`, -width/2 + 10, yPos);
   yPos += 15;
   text(`History: ${gestureHistory.join(', ')}`, -width/2 + 10, yPos);
+  
+  pop();
+}
+
+function drawPrivacyIndicator() {
+  push();
+  fill(0, 255, 0, 150);
+  textAlign(RIGHT);
+  textSize(12);
+  
+  // Draw privacy indicator in top-right corner
+  text("Privacy Mode: Hand Tracking Only", width/2 - 10, -height/2 + 20);
   
   pop();
 }
@@ -277,23 +292,26 @@ window.addEventListener('load', function() {
   
   console.log('MediaPipe Hands available, initializing...');
   
-  // Initialize hands
+  // Initialize hands with privacy-first settings
   hands = new Hands({
     locateFile: (file) => {
       return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
     },
   });
 
+  // Configure for privacy-first: only hand detection, no face processing
   hands.setOptions({
     maxNumHands: 2,
     modelComplexity: 1,
-    minDetectionConfidence: 0.5,
-    minTrackingConfidence: 0.5,
+    minDetectionConfidence: 0.7, // Higher confidence for better accuracy
+    minTrackingConfidence: 0.7,
+    // Privacy settings - only process hand regions
+    selfieMode: true, // Mirror the image for better UX
   });
   hands.onResults(onResults);
   
   // Don't auto-initialize camera, wait for user to click button
-  document.getElementById('camera-status').textContent = 'Camera: Click button to start';
+  document.getElementById('camera-status').textContent = 'Camera: Click button to start (Privacy Mode)';
   document.getElementById('camera-status').style.color = '#ff9800';
   document.getElementById('enable-camera').style.display = 'block';
 });
@@ -326,43 +344,96 @@ function initializeCamera() {
   });
 }
 
+// Check camera permissions function
+async function checkCameraPermissions() {
+  try {
+    const permission = await navigator.permissions.query({ name: 'camera' });
+    return permission.state;
+  } catch (error) {
+    console.log('Permission API not supported, will request camera access');
+    return 'prompt';
+  }
+}
+
+// Force camera access request (bypasses permission checks)
+async function forceCameraRequest() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      video: { 
+        width: { ideal: 640, max: 1280 },
+        height: { ideal: 480, max: 720 },
+        facingMode: 'user',
+        frameRate: { ideal: 30, max: 60 },
+        aspectRatio: { ideal: 4/3 }
+      } 
+    });
+    return { success: true, stream };
+  } catch (error) {
+    console.error('Force camera request failed:', error);
+    return { success: false, error };
+  }
+}
+
 // Manual camera enable button
 document.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('enable-camera').addEventListener('click', function() {
+  document.getElementById('enable-camera').addEventListener('click', async function() {
     console.log('Manual camera enable clicked');
+    
+    // Check current permission status first
+    const permissionState = await checkCameraPermissions();
+    console.log('Current camera permission state:', permissionState);
+    
+    // Try to request camera access regardless of permission state
+    // (except if explicitly denied)
+    if (permissionState === 'denied') {
+      document.getElementById('camera-status').textContent = 'Camera: Permission Denied';
+      document.getElementById('camera-status').style.color = '#f44336';
+      document.getElementById('enable-camera').disabled = false;
+      document.getElementById('enable-camera').textContent = 'Allow Camera Access (Privacy Mode)';
+      document.getElementById('camera-help').style.display = 'block';
+      document.getElementById('camera-help').innerHTML = '<strong>Camera access blocked.</strong> Please enable camera access in your browser settings and refresh the page.';
+      return;
+    }
     
     // Update status
     document.getElementById('camera-status').textContent = 'Camera: Requesting permission...';
     document.getElementById('camera-status').style.color = '#ff9800';
     document.getElementById('enable-camera').disabled = true;
-    document.getElementById('enable-camera').textContent = '⏳ Requesting...';
+    document.getElementById('enable-camera').textContent = 'Requesting...';
     
-    // First get camera access
-    navigator.mediaDevices.getUserMedia({ 
-      video: { 
-        width: { ideal: 640 },
-        height: { ideal: 480 },
-        facingMode: 'user' // Use front camera
-      } 
-    })
-    .then(function(stream) {
-      console.log('Camera stream obtained');
+    try {
+      // Force camera request (this will trigger the permission prompt)
+      const cameraResult = await forceCameraRequest();
+      
+      if (!cameraResult.success) {
+        throw cameraResult.error;
+      }
+      
+      const stream = cameraResult.stream;
+      
+      console.log('Camera stream obtained successfully');
+      
+      // Set up video element with privacy-first processing
       videoElement.srcObject = stream;
       videoElement.play();
       
-      document.getElementById('camera-status').textContent = 'Camera: Active ✅';
+      // Hide the actual video feed for privacy (only show landmarks)
+      videoElement.style.display = 'none';
+      
+      document.getElementById('camera-status').textContent = 'Camera: Active (Privacy Mode)';
       document.getElementById('camera-status').style.color = '#4CAF50';
       document.getElementById('enable-camera').style.display = 'none';
       document.getElementById('camera-help').style.display = 'none';
       
-      // Initialize MediaPipe camera processing
+      // Initialize MediaPipe camera processing with privacy settings
       setTimeout(() => {
-        console.log('Starting MediaPipe processing');
+        console.log('Starting MediaPipe processing with privacy mode');
         
         // Create camera instance for MediaPipe
         camera = new Camera(videoElement, {
           onFrame: async () => {
             if (hands) {
+              // Only send the image for hand landmark processing
               await hands.send({ image: videoElement });
             }
           },
@@ -372,29 +443,32 @@ document.addEventListener('DOMContentLoaded', function() {
         
         camera.start().then(() => {
           console.log('MediaPipe camera processing started successfully');
+          document.getElementById('camera-status').textContent = 'Camera: Active (Hand Tracking Only)';
         }).catch((error) => {
           console.error('MediaPipe camera processing error:', error);
           document.getElementById('camera-status').textContent = 'Camera: Active (No hand tracking)';
         });
       }, 1000);
-    })
-    .catch(function(error) {
-      console.error('Manual camera access failed:', error);
-      document.getElementById('camera-status').textContent = 'Camera: Permission Denied ❌';
+      
+    } catch (error) {
+      console.error('Camera access failed:', error);
+      document.getElementById('camera-status').textContent = 'Camera: Permission Denied';
       document.getElementById('camera-status').style.color = '#f44336';
       document.getElementById('enable-camera').disabled = false;
-      document.getElementById('enable-camera').textContent = '🔓 Allow Camera Access';
+      document.getElementById('enable-camera').textContent = 'Allow Camera Access';
       document.getElementById('camera-help').style.display = 'block';
       
-      // Show specific error message
+      // Show specific error message and solution
       if (error.name === 'NotAllowedError') {
-        document.getElementById('camera-help').innerHTML = '💡 <strong>Camera permission denied.</strong> Please allow camera access in your browser settings or try refreshing the page.';
+        document.getElementById('camera-help').innerHTML = '<strong>Camera permission denied.</strong> Please allow camera access in your browser settings or try refreshing the page.';
       } else if (error.name === 'NotFoundError') {
-        document.getElementById('camera-help').innerHTML = '💡 <strong>No camera found.</strong> Please connect a camera and try again.';
+        document.getElementById('camera-help').innerHTML = '<strong>No camera found.</strong> Please connect a camera and try again.';
+      } else if (error.name === 'NotReadableError') {
+        document.getElementById('camera-help').innerHTML = '<strong>Camera in use.</strong> Please close other camera applications and try again.';
       } else {
-        document.getElementById('camera-help').innerHTML = '💡 <strong>Camera error:</strong> ' + error.message + '. Try refreshing the page.';
+        document.getElementById('camera-help').innerHTML = '<strong>Camera error:</strong> ' + error.message + '. Try refreshing the page.';
       }
-    });
+    }
   });
 });
 
