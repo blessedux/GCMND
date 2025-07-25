@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gesture Recorder - Custom Gesture Training</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <style>
+        .recorder-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .recorder-panel {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .gesture-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .gesture-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .gesture-card h3 {
+            margin: 0 0 10px 0;
+            color: #fff;
+        }
+        
+        .gesture-card p {
+            margin: 5px 0;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        .gesture-card button {
+            margin: 5px;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .btn-record {
+            background: #f44336;
+            color: white;
+        }
+        
+        .btn-stop {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .btn-save {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-delete {
+            background: #9c27b0;
+            color: white;
+        }
+        
+        .recording-indicator {
+            display: none;
+            background: #f44336;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin: 10px 0;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .input-group {
+            margin: 15px 0;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #fff;
+        }
+        
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="recorder-container">
+        <div class="info">
+            <h1>Gesture Recorder - Custom Gesture Training</h1>
+            <p>Record and store custom hand gestures for your computer control system</p>
+        </div>
+        
+        <div class="recorder-panel">
+            <h2>Record New Gesture</h2>
+            
+            <div class="input-group">
+                <label for="gesture-name">Gesture Name:</label>
+                <input type="text" id="gesture-name" placeholder="e.g., 'Wave', 'Peace Sign', 'Thumbs Up'">
+            </div>
+            
+            <div class="input-group">
+                <label for="gesture-category">Category:</label>
+                <select id="gesture-category">
+                    <option value="basic">Basic Gestures</option>
+                    <option value="navigation">Navigation</option>
+                    <option value="actions">Actions</option>
+                    <option value="custom">Custom</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label for="gesture-description">Description:</label>
+                <input type="text" id="gesture-description" placeholder="Describe how to make this gesture">
+            </div>
+            
+            <div class="recording-indicator" id="recording-indicator">
+                🔴 RECORDING - Make your gesture now!
+            </div>
+            
+            <button class="btn-record" id="start-recording">Start Recording</button>
+            <button class="btn-stop" id="stop-recording" style="display: none;">Stop Recording</button>
+            <button class="btn-save" id="save-gesture" style="display: none;">Save Gesture</button>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="total-gestures">0</div>
+                <div class="stat-label">Total Gestures</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="samples-recorded">0</div>
+                <div class="stat-label">Samples Recorded</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="current-samples">0</div>
+                <div class="stat-label">Current Session</div>
+            </div>
+        </div>
+        
+        <div class="video-container">
+            <video class="input_video" autoplay muted playsinline></video>
+            <div id="camera-status" style="color: white; margin-top: 10px;">Camera: Waiting for permission...</div>
+            <button id="enable-camera" style="margin-top: 10px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Allow Camera Access</button>
+            <div id="camera-help" style="color: #ffd700; margin-top: 10px; font-size: 14px; display: none;"></div>
+        </div>
+        
+        <div class="canvas-container" id="canvas-container">
+            <!-- p5.js canvas will be inserted here -->
+        </div>
+        
+        <div class="recorder-panel">
+            <h2>Saved Gestures</h2>
+            <div class="gesture-list" id="gesture-list">
+                <!-- Gesture cards will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="gesture-recorder.js"></script>
+</body>
+</html> 

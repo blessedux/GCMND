@@ -163,6 +163,9 @@ Transform the web-based hand gesture recognition app into a full computer contro
    - [x] Pointing gesture detection
    - [x] Victory gesture detection
    - [x] Enhanced pinch detection
+   - [x] Hand mirroring fix
+   - [x] Visual gesture indicators
+   - [x] Improved grabbing system
 
 2. **Create gesture recording system**
    - [ ] Simple UI to record new gestures
