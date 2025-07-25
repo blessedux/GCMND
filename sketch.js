@@ -95,11 +95,11 @@ function draw() {
   
   // Update status text with gesture information
   const gestureDisplayName = {
-    "pinch": "Pinch ✌️",
-    "fist": "Fist ✊", 
-    "openHand": "Open Hand ✋",
-    "pointing": "Pointing 👆",
-    "victory": "Victory ✌️",
+    "pinch": "Pinch",
+    "fist": "Fist", 
+    "openHand": "Open Hand",
+    "pointing": "Pointing",
+    "victory": "Victory",
     "None": "No Gesture"
   };
   
