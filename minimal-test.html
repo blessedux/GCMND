@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimal Hand Gesture Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .video-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .input_video {
+            width: 640px;
+            height: 480px;
+            border-radius: 10px;
+            margin: 10px;
+        }
+        .canvas-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .info-panel {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            margin: 20px 0;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Minimal Hand Gesture Test (No MediaPipe)</h1>
+        <p>This tests if the issue is with MediaPipe or p5.js</p>
+        
+        <div class="video-container">
+            <video class="input_video" autoplay muted playsinline></video>
+            <div id="camera-status" style="color: white; margin-top: 10px;">Camera: Waiting for permission...</div>
+            <button id="enable-camera" style="margin-top: 10px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Allow Camera Access</button>
+            <div id="camera-help" style="color: #ffd700; margin-top: 10px; font-size: 14px; display: none;"></div>
+        </div>
+        
+        <div class="canvas-container">
+            <div id="canvas-container"></div>
+        </div>
+        
+        <div class="info-panel">
+            <h3>Status</h3>
+            <div id="status">Waiting for camera...</div>
+        </div>
+    </div>
+
+    <script>
+        let videoElement;
+        let cameraStream;
+        
+        // p5.js sketch
+        function setup() {
+            const canvas = createCanvas(640, 480, WEBGL);
+            canvas.parent('canvas-container');
+            
+            videoElement = document.querySelector('.input_video');
+            
+            // Manual camera enable button
+            document.getElementById('enable-camera').addEventListener('click', async function() {
+                console.log('Manual camera enable clicked');
+                
+                // Disable button to prevent multiple clicks
+                document.getElementById('enable-camera').disabled = true;
+                document.getElementById('enable-camera').textContent = 'Requesting...';
+                
+                // Update status
+                document.getElementById('camera-status').textContent = 'Camera: Requesting permission...';
+                document.getElementById('camera-status').style.color = '#ff9800';
+                
+                try {
+                    // Request camera access
+                    cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { 
+                            width: { ideal: 640, max: 1280 },
+                            height: { ideal: 480, max: 720 },
+                            facingMode: 'user',
+                            frameRate: { ideal: 30, max: 60 },
+                            aspectRatio: { ideal: 4/3 }
+                        } 
+                    });
+                    
+                    console.log('Camera stream obtained successfully');
+                    
+                    // Set up video element
+                    videoElement.srcObject = cameraStream;
+                    videoElement.play();
+                    
+                    document.getElementById('camera-status').textContent = 'Camera: Active';
+                    document.getElementById('camera-status').style.color = '#4CAF50';
+                    document.getElementById('enable-camera').style.display = 'none';
+                    document.getElementById('camera-help').style.display = 'none';
+                    
+                    // Update p5.js status
+                    document.getElementById('status').textContent = 'Camera active - p5.js should be working';
+                    
+                } catch (error) {
+                    console.error('Camera access failed:', error);
+                    document.getElementById('camera-status').textContent = 'Camera: Permission Denied';
+                    document.getElementById('camera-status').style.color = '#f44336';
+                    document.getElementById('enable-camera').disabled = false;
+                    document.getElementById('enable-camera').textContent = 'Allow Camera Access';
+                    document.getElementById('camera-help').style.display = 'block';
+                    
+                    if (error.name === 'NotAllowedError') {
+                        document.getElementById('camera-help').innerHTML = '<strong>Camera permission denied.</strong> Please allow camera access in your browser settings or try refreshing the page.';
+                    } else if (error.name === 'NotFoundError') {
+                        document.getElementById('camera-help').innerHTML = '<strong>No camera found.</strong> Please connect a camera and try again.';
+                    } else if (error.name === 'NotReadableError') {
+                        document.getElementById('camera-help').innerHTML = '<strong>Camera in use.</strong> Please close other camera applications and try again.';
+                    } else {
+                        document.getElementById('camera-help').innerHTML = '<strong>Camera error:</strong> ' + error.message + '. Try refreshing the page.';
+                    }
+                }
+            });
+        }
+        
+        function draw() {
+            background(0);
+            
+            // Simple 3D object to test p5.js
+            push();
+            translate(0, 0, -200);
+            rotateX(frameCount * 0.01);
+            rotateY(frameCount * 0.01);
+            box(100);
+            pop();
+            
+            // Display camera status
+            if (videoElement && videoElement.srcObject) {
+                document.getElementById('status').textContent = 'Camera active - p5.js 3D object rotating';
+            } else {
+                document.getElementById('status').textContent = 'Waiting for camera...';
+            }
+        }
+    </script>
+</body>
+</html> 

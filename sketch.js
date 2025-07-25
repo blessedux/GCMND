@@ -39,7 +39,7 @@ let lastGesture = "None";
 const GESTURE_THRESHOLDS = {
   PINCH: 0.015,
   FIST: 0.08,
-  OPEN_HAND: 0.12,
+  OPEN_HAND: 0.06, // Even more reduced to make it easier to detect
   POINTING: 0.06,
   VICTORY: 0.04
 };
@@ -104,8 +104,32 @@ function draw() {
   };
   
   const confidencePercent = Math.round(gestureConfidence * 100);
-  document.querySelector(".info").querySelector("p").innerHTML = 
-    `${gestureDisplayName[currentGesture]} (${confidencePercent}% confidence)`;
+  let statusText = `${gestureDisplayName[currentGesture]} (${confidencePercent}% confidence)`;
+  
+  // Add debug info for open hand
+  if (lastGesture && lastGesture.openHand) {
+    statusText += ` | Open Hand: ${lastGesture.openHand.extendedFingers}/4 fingers, dist: ${lastGesture.openHand.distance.toFixed(3)}`;
+  }
+  
+  // Add more detailed debug info
+  if (lastGesture && lastGesture.openHand) {
+    console.log('Open Hand Debug:', {
+      extendedFingers: lastGesture.openHand.extendedFingers,
+      distance: lastGesture.openHand.distance,
+      threshold: GESTURE_THRESHOLDS.OPEN_HAND,
+      detected: lastGesture.openHand.detected
+    });
+  }
+  
+  document.querySelector(".info").querySelector("p").innerHTML = statusText;
+  
+  // Show/hide open hand indicator
+  const openHandIndicator = document.getElementById('open-hand-indicator');
+  if (currentGesture === "openHand") {
+    openHandIndicator.style.display = 'block';
+  } else {
+    openHandIndicator.style.display = 'none';
+  }
 
   // draw object which is being dragged
   push();
@@ -131,16 +155,25 @@ function draw() {
   }
 
   // Handle grabbing interaction with the object
-  if (grabbing) {
-    // use a distance comparisson to know if the pinch and grabbing is near the object
-    // note that we already map the pinchVector (xy) to the worlds coordinates
+  if (grabbing && lmResults && lm.length > 0) {
+    // Use thumb tip (4) and index tip (8) for pinch position
+    const thumbTip = lm[4];
+    const indexTip = lm[8];
+    
+    // Calculate pinch center position
+    const pinchX = (thumbTip.x + indexTip.x) / 2;
+    const pinchY = (thumbTip.y + indexTip.y) / 2;
+    const pinchZ = (thumbTip.z + indexTip.z) / 2;
+    
+    // Map to world coordinates
     let pinchVector = createVector(
-      -xy[0] * width + width / 2,
-      xy[1] * height - height / 2,
-      xy[2]
+      pinchX * width - width / 2,
+      pinchY * height - height / 2,
+      pinchZ
     );
+    
     if (
-      dist(pinchVector.x, pinchVector.y, objectVector.x, objectVector.y) < 25 &&
+      dist(pinchVector.x, pinchVector.y, objectVector.x, objectVector.y) < 50 &&
       locked == false
     ) {
       locked = true; // Lock the object to the hand
@@ -148,9 +181,9 @@ function draw() {
     }
     if (locked) {
       // Update the object's position based on the pinch
-      objectVector.x = -xy[0] * width + width / 2;
-      objectVector.y = xy[1] * height - height / 2;
-      objectVector.z = xy[2];
+      objectVector.x = pinchX * width - width / 2;
+      objectVector.y = pinchY * height - height / 2;
+      objectVector.z = pinchZ;
     }
   } else {
     locked = false; // Release the object
@@ -177,13 +210,13 @@ function displayResults() {
       /* non mirrored version  uncomment if wanting to use  this */
       //point(lm[i].x*width - width/2,lm[i].y*height -height/2, lm[i].z);
       //text(i,lm[i].x*width - width/2,lm[i].y*height -height/2 );
-      /* mirrored version */
+      /* non mirrored version */
       point(
-        -lm[i].x * width + width / 2,
+        lm[i].x * width - width / 2,
         lm[i].y * height - height / 2,
         lm[i].z
       );
-      text(i, -lm[i].x * width + width / 2 + 4, lm[i].y * height - height / 2);
+      text(i, lm[i].x * width - width / 2 + 4, lm[i].y * height - height / 2);
     }
   }
 }
@@ -226,7 +259,7 @@ function onResults(results) {
     for (const landmarks of results.multiHandLandmarks) {
       lm = landmarks;
       
-      // Enhanced gesture detection
+      // Use original landmarks for gesture detection (visual display is already mirrored)
       const gestureResult = detectAllGestures(landmarks);
       currentGesture = gestureResult.gesture;
       gestureConfidence = gestureResult.confidence;
@@ -293,22 +326,33 @@ window.addEventListener('load', function() {
   console.log('MediaPipe Hands available, initializing...');
   
   // Initialize hands with privacy-first settings
+console.log('Initializing MediaPipe Hands...');
+try {
   hands = new Hands({
     locateFile: (file) => {
+      console.log('Loading MediaPipe file:', file);
       return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
     },
   });
+  console.log('MediaPipe Hands initialized successfully');
+} catch (error) {
+  console.error('Failed to initialize MediaPipe Hands:', error);
+  document.getElementById('camera-status').textContent = 'Error: MediaPipe failed to load';
+  document.getElementById('camera-status').style.color = '#f44336';
+}
 
   // Configure for privacy-first: only hand detection, no face processing
-  hands.setOptions({
-    maxNumHands: 2,
-    modelComplexity: 1,
-    minDetectionConfidence: 0.7, // Higher confidence for better accuracy
-    minTrackingConfidence: 0.7,
-    // Privacy settings - only process hand regions
-    selfieMode: true, // Mirror the image for better UX
-  });
-  hands.onResults(onResults);
+console.log('Setting MediaPipe options...');
+hands.setOptions({
+  maxNumHands: 2,
+  modelComplexity: 1,
+  minDetectionConfidence: 0.7, // Higher confidence for better accuracy
+  minTrackingConfidence: 0.7,
+  // Privacy settings - only process hand regions
+  selfieMode: true, // Mirror the image for better UX
+});
+console.log('Setting MediaPipe onResults callback...');
+hands.onResults(onResults);
   
   // Don't auto-initialize camera, wait for user to click button
   document.getElementById('camera-status').textContent = 'Camera: Click button to start (Privacy Mode)';
@@ -379,27 +423,17 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('enable-camera').addEventListener('click', async function() {
     console.log('Manual camera enable clicked');
     
-    // Check current permission status first
-    const permissionState = await checkCameraPermissions();
-    console.log('Current camera permission state:', permissionState);
-    
-    // Try to request camera access regardless of permission state
-    // (except if explicitly denied)
-    if (permissionState === 'denied') {
-      document.getElementById('camera-status').textContent = 'Camera: Permission Denied';
-      document.getElementById('camera-status').style.color = '#f44336';
-      document.getElementById('enable-camera').disabled = false;
-      document.getElementById('enable-camera').textContent = 'Allow Camera Access (Privacy Mode)';
-      document.getElementById('camera-help').style.display = 'block';
-      document.getElementById('camera-help').innerHTML = '<strong>Camera access blocked.</strong> Please enable camera access in your browser settings and refresh the page.';
-      return;
-    }
+    // Disable button to prevent multiple clicks
+    document.getElementById('enable-camera').disabled = true;
+    document.getElementById('enable-camera').textContent = 'Requesting...';
     
     // Update status
     document.getElementById('camera-status').textContent = 'Camera: Requesting permission...';
     document.getElementById('camera-status').style.color = '#ff9800';
-    document.getElementById('enable-camera').disabled = true;
-    document.getElementById('enable-camera').textContent = 'Requesting...';
+    
+    // Skip permission checking and go straight to camera request
+    // This will trigger the browser's permission prompt
+    console.log('Directly requesting camera access...');
     
     try {
       // Force camera request (this will trigger the permission prompt)
@@ -526,6 +560,7 @@ function detectOpenHand(landmarks) {
   
   let totalDistance = 0;
   let validFingers = 0;
+  let extendedFingers = 0;
   
   for (let i = 0; i < fingerTips.length; i++) {
     const tip = landmarks[fingerTips[i]];
@@ -533,13 +568,23 @@ function detectOpenHand(landmarks) {
     const dist = distance(tip.x, tip.y, base.x, base.y);
     totalDistance += dist;
     validFingers++;
+    
+    // Count how many fingers are extended
+    if (dist > GESTURE_THRESHOLDS.OPEN_HAND * 0.8) { // Slightly more lenient
+      extendedFingers++;
+    }
   }
   
   const avgDistance = totalDistance / validFingers;
+  
+  // Require at least 1 out of 4 fingers to be extended for open hand (very lenient)
+  const isOpenHand = extendedFingers >= 1 && avgDistance > GESTURE_THRESHOLDS.OPEN_HAND * 0.7;
+  
   return {
-    detected: avgDistance > GESTURE_THRESHOLDS.OPEN_HAND,
+    detected: isOpenHand,
     confidence: Math.min(avgDistance / GESTURE_THRESHOLDS.OPEN_HAND, 1),
-    distance: avgDistance
+    distance: avgDistance,
+    extendedFingers: extendedFingers // Debug info
   };
 }
 
