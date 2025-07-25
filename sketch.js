@@ -14,6 +14,7 @@
 
 const videoElement = document.getElementsByClassName("input_video")[0];
 
+// Enhanced gesture detection variables
 let compareD = 0;
 let xy = [250, 250];
 let p_xy = [0, 0];
@@ -27,6 +28,21 @@ let locked = false;
 let objectSize = 1;
 let lastObjectSize = 1;
 let objectSizeSmooth = 0;
+
+// New gesture detection variables
+let currentGesture = "None";
+let gestureConfidence = 0;
+let gestureHistory = [];
+let lastGesture = "None";
+
+// Gesture detection thresholds
+const GESTURE_THRESHOLDS = {
+  PINCH: 0.015,
+  FIST: 0.08,
+  OPEN_HAND: 0.12,
+  POINTING: 0.06,
+  VICTORY: 0.04
+};
 
 // Initialize the canvas and objects
 function setup() {
@@ -46,15 +62,50 @@ function draw() {
   //image(videoInput, -width/2, -height/2, width, height);
   pop();
 
+  // Enhanced gesture display
   strokeWeight(5);
-  stroke(255, 0, 0);
-
-  line(0, 0, compareD * 500, 0);
-  if (compareD < 0.015) {
-    document.querySelector(".info").querySelector("p").innerHTML = "Pinch detected!";
-  } else {
-    document.querySelector(".info").querySelector("p").innerHTML = "No pinch detected";
+  
+  // Color based on gesture type
+  let gestureColor;
+  switch(currentGesture) {
+    case "pinch":
+      gestureColor = color(255, 0, 0); // Red
+      break;
+    case "fist":
+      gestureColor = color(255, 165, 0); // Orange
+      break;
+    case "openHand":
+      gestureColor = color(0, 255, 0); // Green
+      break;
+    case "pointing":
+      gestureColor = color(0, 255, 255); // Cyan
+      break;
+    case "victory":
+      gestureColor = color(255, 0, 255); // Magenta
+      break;
+    default:
+      gestureColor = color(128, 128, 128); // Gray
   }
+  
+  stroke(gestureColor);
+  
+  // Draw gesture indicator line
+  const lineLength = gestureConfidence * 300;
+  line(0, 0, lineLength, 0);
+  
+  // Update status text with gesture information
+  const gestureDisplayName = {
+    "pinch": "Pinch ✌️",
+    "fist": "Fist ✊", 
+    "openHand": "Open Hand ✋",
+    "pointing": "Pointing 👆",
+    "victory": "Victory ✌️",
+    "None": "No Gesture"
+  };
+  
+  const confidencePercent = Math.round(gestureConfidence * 100);
+  document.querySelector(".info").querySelector("p").innerHTML = 
+    `${gestureDisplayName[currentGesture]} (${confidencePercent}% confidence)`;
 
   // draw object which is being dragged
   push();
@@ -72,8 +123,8 @@ function draw() {
   // drawing landmarks
   displayResults();
 
-  // Detect if the user is performing a pinch gesture
-  if (compareD < 0.015) {
+  // Enhanced gesture-based interaction
+  if (currentGesture === "pinch") {
     grabbing = true; // Pinch detected
   } else {
     grabbing = false; // No pinch
@@ -108,6 +159,11 @@ function draw() {
   // smoothing the objectSize based on locked and unlocked object
   objectSizeSmooth = objectSize * 0.5 + lastObjectSize * 0.5;
   lastObjectSize = objectSizeSmooth;
+  
+  // Draw gesture debug information
+  if (lmResults) {
+    drawGestureDebug();
+  }
 }
 
 function displayResults() {
@@ -129,26 +185,75 @@ function displayResults() {
   }
 }
 
+function drawGestureDebug() {
+  push();
+  fill(255);
+  textAlign(LEFT);
+  textSize(14);
+  
+  let yPos = -height/2 + 20;
+  text("Gesture Debug Info:", -width/2 + 10, yPos);
+  yPos += 20;
+  
+  text(`Current: ${currentGesture}`, -width/2 + 10, yPos);
+  yPos += 15;
+  text(`Confidence: ${Math.round(gestureConfidence * 100)}%`, -width/2 + 10, yPos);
+  yPos += 15;
+  text(`History: ${gestureHistory.join(', ')}`, -width/2 + 10, yPos);
+  
+  pop();
+}
+
 let lm = [];
 function onResults(results) {
   if (results.multiHandLandmarks) {
     lmResults = true;
     for (const landmarks of results.multiHandLandmarks) {
       lm = landmarks;
-      for (let i = 0; i < landmarks.length; i++) {
-        compareD = distance(
-          landmarks[8].x,
-          landmarks[8].y,
-          landmarks[4].x,
-          landmarks[4].y
-        );
-        if (compareD <= 0.01) {
-          xy[0] = (landmarks[4].x + landmarks[8].x) / 2;
-          xy[1] = (landmarks[4].y + landmarks[8].y) / 2;
-          xy[2] = landmarks[4].z;
-        }
+      
+      // Enhanced gesture detection
+      const gestureResult = detectAllGestures(landmarks);
+      currentGesture = gestureResult.gesture;
+      gestureConfidence = gestureResult.confidence;
+      
+      // Update gesture history for smoothing
+      gestureHistory.push(currentGesture);
+      if (gestureHistory.length > 5) {
+        gestureHistory.shift();
+      }
+      
+      // Get most common gesture in recent history (smoothing)
+      const gestureCounts = {};
+      gestureHistory.forEach(gesture => {
+        gestureCounts[gesture] = (gestureCounts[gesture] || 0) + 1;
+      });
+      
+      const mostCommonGesture = Object.keys(gestureCounts).reduce((a, b) => 
+        gestureCounts[a] > gestureCounts[b] ? a : b
+      );
+      
+      if (gestureCounts[mostCommonGesture] >= 3) {
+        currentGesture = mostCommonGesture;
+      }
+      
+      // Legacy pinch detection for backward compatibility
+      compareD = distance(
+        landmarks[8].x,
+        landmarks[8].y,
+        landmarks[4].x,
+        landmarks[4].y
+      );
+      
+      if (compareD <= 0.01) {
+        xy[0] = (landmarks[4].x + landmarks[8].x) / 2;
+        xy[1] = (landmarks[4].y + landmarks[8].y) / 2;
+        xy[2] = landmarks[4].z;
       }
     }
+  } else {
+    lmResults = false;
+    currentGesture = "None";
+    gestureConfidence = 0;
   }
 }
 
@@ -293,6 +398,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
+// Enhanced gesture detection functions
 function distance(x1, y1, x2, y2) {
   let dx = x2 - x1;
   let dy = y2 - y1;
@@ -300,4 +406,155 @@ function distance(x1, y1, x2, y2) {
   let tD = dx * dx + dy * dy;
   // + (dz*dz)
   return tD;
+}
+
+function detectPinch(landmarks) {
+  // Distance between thumb tip (4) and index tip (8)
+  const pinchDistance = distance(
+    landmarks[4].x, landmarks[4].y,
+    landmarks[8].x, landmarks[8].y
+  );
+  return {
+    detected: pinchDistance < GESTURE_THRESHOLDS.PINCH,
+    confidence: 1 - (pinchDistance / GESTURE_THRESHOLDS.PINCH),
+    distance: pinchDistance
+  };
+}
+
+function detectFist(landmarks) {
+  // Check if all fingers are curled (tips are close to base)
+  const fingerTips = [8, 12, 16, 20]; // Index, middle, ring, pinky tips
+  const fingerBases = [5, 9, 13, 17]; // Index, middle, ring, pinky bases
+  
+  let totalDistance = 0;
+  let validFingers = 0;
+  
+  for (let i = 0; i < fingerTips.length; i++) {
+    const tip = landmarks[fingerTips[i]];
+    const base = landmarks[fingerBases[i]];
+    const dist = distance(tip.x, tip.y, base.x, base.y);
+    totalDistance += dist;
+    validFingers++;
+  }
+  
+  const avgDistance = totalDistance / validFingers;
+  return {
+    detected: avgDistance < GESTURE_THRESHOLDS.FIST,
+    confidence: 1 - (avgDistance / GESTURE_THRESHOLDS.FIST),
+    distance: avgDistance
+  };
+}
+
+function detectOpenHand(landmarks) {
+  // Check if all fingers are extended (tips are far from base)
+  const fingerTips = [8, 12, 16, 20]; // Index, middle, ring, pinky tips
+  const fingerBases = [5, 9, 13, 17]; // Index, middle, ring, pinky bases
+  
+  let totalDistance = 0;
+  let validFingers = 0;
+  
+  for (let i = 0; i < fingerTips.length; i++) {
+    const tip = landmarks[fingerTips[i]];
+    const base = landmarks[fingerBases[i]];
+    const dist = distance(tip.x, tip.y, base.x, base.y);
+    totalDistance += dist;
+    validFingers++;
+  }
+  
+  const avgDistance = totalDistance / validFingers;
+  return {
+    detected: avgDistance > GESTURE_THRESHOLDS.OPEN_HAND,
+    confidence: Math.min(avgDistance / GESTURE_THRESHOLDS.OPEN_HAND, 1),
+    distance: avgDistance
+  };
+}
+
+function detectPointing(landmarks) {
+  // Check if only index finger is extended
+  const fingerTips = [8, 12, 16, 20]; // Index, middle, ring, pinky tips
+  const fingerBases = [5, 9, 13, 17]; // Index, middle, ring, pinky bases
+  
+  const indexDistance = distance(
+    landmarks[8].x, landmarks[8].y,
+    landmarks[5].x, landmarks[5].y
+  );
+  
+  // Check if other fingers are curled
+  let otherFingersCurled = true;
+  for (let i = 1; i < fingerTips.length; i++) {
+    const dist = distance(
+      landmarks[fingerTips[i]].x, landmarks[fingerTips[i]].y,
+      landmarks[fingerBases[i]].x, landmarks[fingerBases[i]].y
+    );
+    if (dist > GESTURE_THRESHOLDS.POINTING) {
+      otherFingersCurled = false;
+      break;
+    }
+  }
+  
+  return {
+    detected: indexDistance > GESTURE_THRESHOLDS.OPEN_HAND && otherFingersCurled,
+    confidence: Math.min(indexDistance / GESTURE_THRESHOLDS.OPEN_HAND, 1),
+    distance: indexDistance
+  };
+}
+
+function detectVictory(landmarks) {
+  // Check if index and middle fingers are extended, others curled
+  const indexDistance = distance(
+    landmarks[8].x, landmarks[8].y,
+    landmarks[5].x, landmarks[5].y
+  );
+  const middleDistance = distance(
+    landmarks[12].x, landmarks[12].y,
+    landmarks[9].x, landmarks[9].y
+  );
+  
+  // Check if ring and pinky are curled
+  const ringDistance = distance(
+    landmarks[16].x, landmarks[16].y,
+    landmarks[13].x, landmarks[13].y
+  );
+  const pinkyDistance = distance(
+    landmarks[20].x, landmarks[20].y,
+    landmarks[17].x, landmarks[17].y
+  );
+  
+  const indexMiddleExtended = indexDistance > GESTURE_THRESHOLDS.OPEN_HAND && 
+                             middleDistance > GESTURE_THRESHOLDS.OPEN_HAND;
+  const othersCurled = ringDistance < GESTURE_THRESHOLDS.POINTING && 
+                      pinkyDistance < GESTURE_THRESHOLDS.POINTING;
+  
+  return {
+    detected: indexMiddleExtended && othersCurled,
+    confidence: Math.min((indexDistance + middleDistance) / (2 * GESTURE_THRESHOLDS.OPEN_HAND), 1),
+    distance: (indexDistance + middleDistance) / 2
+  };
+}
+
+function detectAllGestures(landmarks) {
+  const gestures = {
+    pinch: detectPinch(landmarks),
+    fist: detectFist(landmarks),
+    openHand: detectOpenHand(landmarks),
+    pointing: detectPointing(landmarks),
+    victory: detectVictory(landmarks)
+  };
+  
+  // Find the gesture with highest confidence
+  let bestGesture = "None";
+  let bestConfidence = 0;
+  
+  for (const [gestureName, gesture] of Object.entries(gestures)) {
+    if (gesture.detected && gesture.confidence > bestConfidence) {
+      bestGesture = gestureName;
+      bestConfidence = gesture.confidence;
+    }
+  }
+  
+  return {
+    gesture: bestGesture,
+    confidence: bestConfidence,
+    details: gestures
+  };
 } 
