@@ -1,85 +1,242 @@
-# Hand Gesture Computer Control System - TODO
+# GCMD: Gesture & Voice-Controlled Web Navigation — PoC Roadmap
 
 ## Project Overview
 
-Transform the web-based hand gesture recognition app into a full computer control system that can control the entire UI using hand gestures.
+Transform the web-based hand gesture recognition app into a comprehensive gesture and voice-controlled web navigation system that can control web interfaces using hand gestures and voice commands.
 
-## Phase 1: Core Infrastructure & Basic Gesture Recognition
+## 🧪 PoC Scope & Features
 
-### 1.1 Enhanced Gesture Detection System
+### ✅ Core Features
 
-- [ ] **Expand gesture library beyond pinch**
+#### 1. Hand Landmark Detection
 
-  - [ ] Open hand (all fingers extended)
-  - [ ] Closed fist (all fingers curled)
-  - [ ] Pointing gesture (index finger extended)
-  - [ ] Victory sign (index + middle finger)
-  - [ ] Thumbs up/down
-  - [ ] Palm facing camera (stop gesture)
+- [x] Render dots (for depth) and vectors (for gesture recognition)
+- [x] Real-time tracking of 21 landmarks per hand
+- [x] Multi-hand support (left/right hand tracking)
+- [x] Enhanced gesture detection (pinch, fist, open hand, pointing, victory)
 
-- [ ] **Create gesture classification system**
+#### 2. Cursor Control via Hand Gestures
+
+- [ ] Stable 2D cursor that follows index fingertip
+- [ ] Cursor smoothing (e.g. Kalman filter or moving average)
+- [ ] Prevent cursor from leaving the screen bounds
+- [ ] Cursor speed sensitivity settings
+
+#### 3. Z-Depth Interaction
+
+- [ ] Measure hand's distance from camera
+- [ ] Use depth (z-coordinate) to simulate "pushing" or "reaching"
+- [ ] Map depth to 3D interaction or UI scaling/trigger zones
+- [ ] Optional depth visualizer
+
+#### 4. Gesture Recognition
+
+- [x] Basic gesture detection (pinch, fist, open hand, pointing, victory)
+- [ ] Predefined gestures for:
+  - [ ] Click
+  - [ ] Scroll
+  - [ ] Swipe left/right
+  - [ ] Grab & drop (for later 3D object manipulation)
+- [ ] Inspired by ASL for intuitive ergonomics
+- [ ] Gesture confidence scoring
+- [ ] Gesture smoothing and filtering
+
+#### 5. Voice Command Input
+
+- [ ] Automatically transcribe speech when a gesture "focuses" an input field
+- [ ] Pause triggers Enter key event
+- [ ] Voice navigation (e.g., "next", "submit", "scroll down")
+- [ ] Web Speech API integration
+
+#### 6. Keyboard Emulation & Navigation
+
+- [ ] Simulate Tab, Enter, and directional keys based on gestures
+- [ ] Map gestures to browser events (e.g., click, hover)
+- [ ] Customizable key combinations
+- [ ] Application-specific gesture sets
+
+#### 7. UI Feedback
+
+- [x] Visual feedback on gesture detection (gesture indicators)
+- [ ] Highlight buttons, show glow when in "click zone"
+- [ ] Always-on-top gesture overlay
+- [ ] Current gesture recognition status
+- [ ] Gesture confidence indicator
+
+#### 8. Electron Integration
+
+- [ ] Wrap app into a macOS native .dmg app
+- [ ] Optional: use system-level access to control native UI
+- [ ] System tray and background running
+- [ ] Hotkey to enable/disable
+
+## 🧰 Tech Stack
+
+### 🖐 Hand Tracking
+
+- [x] MediaPipe Hands (via TensorFlow.js)
+- [x] Real-time 3D hand landmark detection in browser
+- [x] p5.js for canvas rendering
+
+### 🧠 Gesture Recognition
+
+- [x] Custom gesture engine using landmark vector analysis
+- [ ] Threshold-based detection for basic gestures
+- [ ] Optional: ML model for complex gesture classification
+- [ ] Gesture recording and training system
+
+### 🗣 Voice Recognition
+
+- [ ] Web Speech API for real-time speech-to-text (no backend needed)
+- [ ] Optional fallback: Whisper API (for more robust transcription, slower)
+
+### 🖱 Cursor Handling
+
+- [ ] Canvas or HTML Overlay
+- [ ] Floating cursor element always within viewport
+- [ ] JS logic to clamp position
+- [ ] Apply moving average filter to reduce jitter
+
+### 🎨 UI & Rendering
+
+- [x] p5.js for canvas rendering
+- [x] React.js (with Next.js) for UI & layout structure
+- [x] TypeScript for type safety
+- [ ] Tailwind CSS or styled-components for styling (optional)
+
+### 📦 Desktop App Packaging
+
+- [ ] Electron.js
+- [ ] Wraps the Next.js app into a desktop app
+- [ ] Allows system-level input simulation (e.g., with robotjs, node-mac-automation)
+
+### 🧪 Dev Utilities
+
+- [x] Next.js — Fast build/dev environment
+- [ ] Tauri (optional alt to Electron, for smaller build size)
+
+## 🗺️ Roadmap (3-Phase PoC)
+
+### Phase 1: Browser-Based MVP ✅ (In Progress)
+
+- [x] Hand landmark rendering (dots + vectors)
+- [x] Basic gesture recognition (pinch, fist, open hand, pointing, victory)
+- [x] Multi-hand support
+- [x] Real-time hand landmark visualization
+- [x] Privacy mode (no video storage)
+- [ ] Cursor following index finger (smoothed)
+- [ ] Gesture-based click & scroll
+- [ ] Voice dictation on gesture-based input focus
+
+### Phase 2: Enhanced Interactions ⏳
+
+- [ ] Depth-to-z-axis mapping
+- [ ] Grabbing motion → 3D object manipulation
+- [ ] Gesture-to-keyboard mappings
+- [ ] Advanced gesture recognition
+  - [ ] Machine learning for custom gestures
+  - [ ] Gesture adaptation over time
+  - [ ] User-specific gesture optimization
+- [ ] Multi-hand support
+  - [ ] Left hand for navigation
+  - [ ] Right hand for actions
+  - [ ] Two-handed gestures
+
+### Phase 3: Desktop App ⏳
+
+- [ ] Wrap into Electron
+- [ ] Allow OS-level navigation (optional)
+- [ ] Optimize camera permissions and packaging
+- [ ] System tray integration
+- [ ] Background running capability
+
+## Detailed Implementation Tasks
+
+### Phase 1: Browser-Based MVP (Current Focus)
+
+#### 1.1 Enhanced Gesture Detection System ✅ (Mostly Complete)
+
+- [x] Expand gesture library beyond pinch
+  - [x] Open hand (all fingers extended)
+  - [x] Closed fist (all fingers curled)
+  - [x] Pointing gesture (index finger extended)
+  - [x] Victory sign (index + middle finger)
+  - [x] Enhanced pinch detection
+- [ ] Create gesture classification system
   - [ ] Implement distance-based gesture detection
   - [ ] Add angle-based gesture recognition
   - [ ] Create gesture confidence scoring
   - [ ] Add gesture smoothing and filtering
 
-### 1.2 Gesture Recording & Training System
+#### 1.2 Cursor Control System ⏳
 
-- [ ] **Build gesture recording interface**
-
-  - [ ] Create "Record New Gesture" mode
-  - [ ] Add gesture naming and labeling
-  - [ ] Implement gesture data collection
-  - [ ] Add gesture validation system
-
-- [ ] **Gesture storage system**
-  - [ ] Local JSON storage for custom gestures
-  - [ ] Gesture export/import functionality
-  - [ ] Gesture editing and deletion
-  - [ ] Gesture categories (basic, advanced, custom)
-
-## Phase 2: Computer Control Integration
-
-### 2.1 System-Level Integration
-
-- [ ] **Choose technology stack for computer control**
-
-  - [ ] **Option A**: Electron app (cross-platform, JavaScript)
-  - [ ] **Option B**: Python with PyAutoGUI (more powerful)
-  - [ ] **Option C**: Node.js with robotjs (good balance)
-  - **Recommendation**: Start with Electron for rapid prototyping
-
-- [ ] **Convert web app to desktop application**
-  - [ ] Set up Electron project structure
-  - [ ] Integrate existing p5.js + MediaPipe code
-  - [ ] Add system tray and background running
-  - [ ] Implement hotkey to enable/disable
-
-### 2.2 Mouse Control System
-
-- [ ] **Implement cursor control**
-
+- [ ] Implement cursor control
   - [ ] Map hand position to screen coordinates
   - [ ] Add cursor smoothing and acceleration
   - [ ] Implement cursor boundaries (screen edges)
   - [ ] Add cursor speed sensitivity settings
-
-- [ ] **Click simulation**
+- [ ] Click simulation
   - [ ] Pinch gesture = left click
   - [ ] Double pinch = double click
   - [ ] Right hand pinch = right click
   - [ ] Add click feedback (visual/audio)
 
-### 2.3 Gesture-to-Action Mapping
+#### 1.3 Voice Integration ⏳
 
-- [ ] **Create action mapping system**
+- [ ] Web Speech API integration
+  - [ ] Real-time speech-to-text
+  - [ ] Voice command recognition
+  - [ ] Input field focus detection
+- [ ] Voice navigation commands
+  - [ ] "next", "submit", "scroll down"
+  - [ ] "click", "hover", "select"
 
+#### 1.4 Gesture Recording & Training System ⏳
+
+- [ ] Build gesture recording interface
+  - [ ] Create "Record New Gesture" mode
+  - [ ] Add gesture naming and labeling
+  - [ ] Implement gesture data collection
+  - [ ] Add gesture validation system
+- [ ] Gesture storage system
+  - [ ] Local JSON storage for custom gestures
+  - [ ] Gesture export/import functionality
+  - [ ] Gesture editing and deletion
+  - [ ] Gesture categories (basic, advanced, custom)
+
+### Phase 2: Enhanced Interactions
+
+#### 2.1 Z-Depth Interaction System
+
+- [ ] Depth measurement implementation
+  - [ ] Calculate hand distance from camera
+  - [ ] Map depth to interaction zones
+  - [ ] 3D object manipulation
+- [ ] Depth visualizer
+  - [ ] Real-time depth display
+  - [ ] Interaction zone indicators
+
+#### 2.2 Advanced Gesture Recognition
+
+- [ ] Multi-hand support
+  - [ ] Left hand for navigation
+  - [ ] Right hand for actions
+  - [ ] Two-handed gestures
+  - [ ] Hand switching detection
+- [ ] Dynamic gesture recognition
+  - [ ] Machine learning for custom gestures
+  - [ ] Gesture adaptation over time
+  - [ ] User-specific gesture optimization
+  - [ ] Gesture context awareness
+
+#### 2.3 Keyboard Emulation & Navigation
+
+- [ ] Create action mapping system
   - [ ] Gesture → Action configuration file
   - [ ] Customizable key combinations
   - [ ] Application-specific gesture sets
   - [ ] Context-aware gesture recognition
-
-- [ ] **Basic actions to implement**
+- [ ] Basic actions to implement
   - [ ] Open hand = move cursor
   - [ ] Pinch = click
   - [ ] Fist = drag
@@ -88,65 +245,54 @@ Transform the web-based hand gesture recognition app into a full computer contro
   - [ ] Thumbs up = confirm
   - [ ] Thumbs down = cancel
 
-## Phase 3: Advanced Features
+### Phase 3: Desktop App
 
-### 3.1 Visual Feedback System
+#### 3.1 Electron Integration
 
-- [ ] **On-screen gesture indicator**
+- [ ] Convert to Electron app
+  - [ ] Set up Electron project structure
+  - [ ] Integrate existing Next.js + p5.js + MediaPipe code
+  - [ ] Add system tray and background running
+  - [ ] Implement hotkey to enable/disable
+- [ ] System-level integration
+  - [ ] Choose technology stack for computer control
+  - [ ] Node.js with robotjs or Python PyAutoGUI
+  - [ ] macOS native .dmg app packaging
 
+#### 3.2 Visual Feedback System
+
+- [ ] On-screen gesture indicator
   - [ ] Always-on-top gesture overlay
   - [ ] Real-time hand landmark display
   - [ ] Current gesture recognition status
   - [ ] Gesture confidence indicator
-
-- [ ] **System integration feedback**
+- [ ] System integration feedback
   - [ ] Cursor position indicator
   - [ ] Action preview before execution
   - [ ] Gesture history display
   - [ ] Error feedback for failed gestures
 
-### 3.2 Advanced Gesture Recognition
+#### 3.3 Configuration & Settings
 
-- [ ] **Multi-hand support**
-
-  - [ ] Left hand for navigation
-  - [ ] Right hand for actions
-  - [ ] Two-handed gestures
-  - [ ] Hand switching detection
-
-- [ ] **Dynamic gesture recognition**
-  - [ ] Machine learning for custom gestures
-  - [ ] Gesture adaptation over time
-  - [ ] User-specific gesture optimization
-  - [ ] Gesture context awareness
-
-## Phase 4: User Experience & Polish
-
-### 4.1 Configuration & Settings
-
-- [ ] **Settings interface**
-
+- [ ] Settings interface
   - [ ] Gesture sensitivity controls
   - [ ] Cursor speed settings
   - [ ] Gesture timeout settings
   - [ ] Application exclusions
-
-- [ ] **Profile system**
+- [ ] Profile system
   - [ ] Multiple user profiles
   - [ ] Application-specific profiles
   - [ ] Gesture set switching
   - [ ] Profile import/export
 
-### 4.2 Safety & Reliability
+#### 3.4 Safety & Reliability
 
-- [ ] **Safety features**
-
+- [ ] Safety features
   - [ ] Emergency stop gesture
   - [ ] Gesture confirmation for destructive actions
   - [ ] Timeout for accidental gestures
   - [ ] Undo/redo functionality
-
-- [ ] **Performance optimization**
+- [ ] Performance optimization
   - [ ] Gesture recognition optimization
   - [ ] Memory usage optimization
   - [ ] CPU usage monitoring
@@ -154,65 +300,45 @@ Transform the web-based hand gesture recognition app into a full computer contro
 
 ## Immediate Next Steps (Priority Order)
 
-### Step 1: Enhanced Gesture Detection (Week 1) - COMPLETED
+### Step 1: Cursor Control System (Week 1)
 
-1. **Add basic gesture recognition beyond pinch**
+1. **Implement cursor following index finger**
 
-   - [x] Open hand detection
-   - [x] Closed fist detection
-   - [x] Pointing gesture detection
-   - [x] Victory gesture detection
-   - [x] Enhanced pinch detection
-   - [x] Hand mirroring fix
-   - [x] Visual gesture indicators
-   - [x] Improved grabbing system
+   - [ ] Map hand position to screen coordinates
+   - [ ] Add cursor smoothing (moving average filter)
+   - [ ] Implement cursor boundaries
+   - [ ] Add cursor speed sensitivity settings
 
-2. **Create gesture recording system**
+2. **Basic click simulation**
+   - [ ] Pinch gesture = left click
+   - [ ] Add click feedback
+
+### Step 2: Voice Integration (Week 2)
+
+1. **Web Speech API integration**
+
+   - [ ] Real-time speech-to-text
+   - [ ] Voice command recognition
+   - [ ] Input field focus detection
+
+2. **Voice navigation commands**
+   - [ ] Basic navigation commands
+   - [ ] Form input assistance
+
+### Step 3: Gesture Recording System (Week 3)
+
+1. **Create gesture recording UI**
+
    - [ ] Simple UI to record new gestures
    - [ ] Basic gesture storage
 
-### Step 2: Electron Integration (Week 2)
-
-1. **Convert to Electron app**
-
-   - [ ] Set up Electron project
-   - [ ] Integrate existing code
-   - [ ] Add system tray
-
-2. **Implement basic mouse control**
-   - [ ] Hand position to cursor mapping
-   - [ ] Basic click simulation
-
-### Step 3: Gesture-to-Action System (Week 3)
-
-1. **Create action mapping**
-
-   - [ ] Configurable gesture actions
-   - [ ] Basic keyboard shortcuts
-
-2. **Add visual feedback**
-   - [ ] On-screen gesture indicator
-   - [ ] Cursor position display
-
-## Technical Stack Recommendation
-
-### Core Technologies:
-
-- **Frontend**: Electron + p5.js + MediaPipe
-- **Gesture Storage**: JSON files + SQLite
-- **System Control**: Node.js robotjs or Python PyAutoGUI
-- **UI Framework**: Electron with HTML/CSS/JS
-
-### Development Tools:
-
-- **Version Control**: Git (already set up)
-- **Package Manager**: npm/yarn
-- **Build Tool**: Electron Builder
-- **Testing**: Jest for unit tests
+2. **Gesture management**
+   - [ ] Edit and delete gestures
+   - [ ] Gesture validation
 
 ## Progress Tracking
 
-### Completed
+### Completed ✅
 
 - [x] Basic hand gesture recognition (pinch)
 - [x] Web-based p5.js + MediaPipe integration
@@ -225,38 +351,41 @@ Transform the web-based hand gesture recognition app into a full computer contro
 - [x] Clean, centered UI without scrolling
 - [x] Real-time hand landmark visualization
 - [x] Privacy mode (no video storage)
+- [x] Hand landmark rendering (dots + vectors)
 
-### In Progress
+### In Progress ⏳
 
-- [ ] Gesture recording system (Step 1.2)
-
-### Next Up
-
+- [ ] Cursor control system
+- [ ] Voice integration
 - [ ] Gesture recording system
+
+### Next Up 🔄
+
+- [ ] Z-depth interaction
+- [ ] Advanced gesture recognition
 - [ ] Electron integration for desktop app
-- [ ] Mouse control implementation
 
-## Current Focus: Task 1.2 - Gesture Recording System
+## Current Focus: Phase 1 - Cursor Control System
 
-**Goal**: Create a system to record and store custom gestures.
+**Goal**: Implement stable cursor control that follows the index fingertip with proper smoothing and boundaries.
 
 **Tasks**:
 
-1. [ ] Create gesture recording UI
-2. [ ] Implement gesture data collection
-3. [ ] Add gesture storage system
-4. [ ] Create gesture playback/validation
-5. [ ] Add gesture management interface
+1. [ ] Map hand position to screen coordinates
+2. [ ] Implement cursor smoothing (moving average filter)
+3. [ ] Add cursor boundaries (screen edges)
+4. [ ] Add cursor speed sensitivity settings
+5. [ ] Implement basic click simulation
 
 **Success Criteria**:
 
-- [ ] Can record new custom gestures
-- [ ] Gestures are stored locally
-- [ ] Can edit and delete gestures
-- [ ] Gesture validation works
-- [ ] UI is intuitive and responsive
+- [ ] Cursor smoothly follows index finger
+- [ ] Cursor stays within screen bounds
+- [ ] Click simulation works with pinch gesture
+- [ ] Cursor movement is responsive and accurate
 
 ---
 
-_Last Updated: July 25, 2025_
-_Current Phase: Phase 1 - Step 1.2_
+_Last Updated: January 2025_
+_Current Phase: Phase 1 - Cursor Control System_
+_Project Status: Active Development_
