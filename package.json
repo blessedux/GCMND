@@ -10,19 +10,21 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@types/three": "^0.178.1",
     "next": "^14.0.0",
+    "p5": "^1.7.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "p5": "^1.7.0"
+    "three": "^0.178.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@types/p5": "^1.7.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
-    "@types/p5": "^1.7.0",
-    "typescript": "^5.0.0",
     "eslint": "^8.0.0",
-    "eslint-config-next": "^14.0.0"
+    "eslint-config-next": "^14.0.0",
+    "typescript": "^5.0.0"
   },
   "keywords": [
     "hand-gesture",
@@ -34,4 +36,4 @@
   ],
   "author": "Your Name",
   "license": "MIT"
-} 
+}

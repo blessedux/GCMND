@@ -11,6 +11,9 @@ A modern, real-time multi-hand gesture recognition application built with **Next
 - **Privacy-First Design**: Only hand landmarks are processed, no video is stored or displayed
 - **Modern UI**: Built with Next.js and TypeScript for a responsive, modern interface
 - **Cross-Platform**: Works on desktop and mobile browsers
+- **Multiple Render Modes**:
+  - 🎯 **Vector**: Jitter-free hand tracking with smooth interpolation
+  - 🤚 **3D Hand**: Animated 3D GLB hand models with bone mapping
 
 ## 🚀 Quick Start
 

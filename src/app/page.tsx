@@ -1,5 +1,6 @@
 'use client';
 
+
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import CameraControls from '@/components/CameraControls';
@@ -8,9 +9,8 @@ import { CameraStatus, MultiHandData, HandData, MediaPipeResults } from '@/types
 import { detectAllGestures } from '@/lib/gestureDetection';
 
 // Dynamically import p5 to avoid SSR issues
-const Sketch = dynamic(() => import('@/components/Sketch'), { ssr: false });
-const Hand3DModel = dynamic(() => import('@/components/Hand3DModel'), { ssr: false });
 const StableHandRenderer = dynamic(() => import('@/components/StableHandRenderer'), { ssr: false });
+const GLBHandRenderer = dynamic(() => import('@/components/GLBHandRenderer'), { ssr: false });
 
 export default function Home() {
   const [cameraStatus, setCameraStatus] = useState<CameraStatus>({
@@ -25,7 +25,7 @@ export default function Home() {
   });
   
   const [showOpenHandIndicator, setShowOpenHandIndicator] = useState(false);
-  const [renderMode, setRenderMode] = useState<'stable' | '3d' | 'points'>('stable');
+  const [renderMode, setRenderMode] = useState<'vector' | '3d-hand'>('vector');
   
   const handsRef = useRef<any>(null);
   const cameraRef = useRef<any>(null);
@@ -398,22 +398,15 @@ export default function Home() {
       />
       
       <div className="canvas-container">
-        {renderMode === 'stable' && (
+        {renderMode === 'vector' && (
           <StableHandRenderer 
             leftHand={multiHandData.leftHand}
             rightHand={multiHandData.rightHand}
           />
         )}
-        {renderMode === '3d' && (
-          <Hand3DModel 
-            leftHand={multiHandData.leftHand}
-            rightHand={multiHandData.rightHand}
-          />
-        )}
-        {renderMode === 'points' && (
-          <Sketch 
+        {renderMode === '3d-hand' && (
+          <GLBHandRenderer 
             multiHandData={multiHandData}
-            videoRef={videoRef}
           />
         )}
       </div>
@@ -433,9 +426,9 @@ export default function Home() {
         <div style={{ marginBottom: '8px', fontSize: '12px', opacity: 0.8 }}>Render Mode:</div>
         <div style={{ display: 'flex', gap: '5px', flexDirection: 'column' }}>
           <button
-            onClick={() => setRenderMode('stable')}
+            onClick={() => setRenderMode('vector')}
             style={{
-              background: renderMode === 'stable' ? '#4CAF50' : '#666',
+              background: renderMode === 'vector' ? '#4CAF50' : '#666',
               color: 'white',
               border: 'none',
               borderRadius: '5px',
@@ -444,12 +437,12 @@ export default function Home() {
               fontSize: '11px'
             }}
           >
-            🎯 Stable
+            🎯 Vector
           </button>
           <button
-            onClick={() => setRenderMode('3d')}
+            onClick={() => setRenderMode('3d-hand')}
             style={{
-              background: renderMode === '3d' ? '#4CAF50' : '#666',
+              background: renderMode === '3d-hand' ? '#4CAF50' : '#666',
               color: 'white',
               border: 'none',
               borderRadius: '5px',
@@ -458,21 +451,7 @@ export default function Home() {
               fontSize: '11px'
             }}
           >
-            🤚 3D Hands
-          </button>
-          <button
-            onClick={() => setRenderMode('points')}
-            style={{
-              background: renderMode === 'points' ? '#4CAF50' : '#666',
-              color: 'white',
-              border: 'none',
-              borderRadius: '5px',
-              padding: '6px 10px',
-              cursor: 'pointer',
-              fontSize: '11px'
-            }}
-          >
-            ⚫ Points
+            🤚 3D Hand
           </button>
         </div>
       </div>
