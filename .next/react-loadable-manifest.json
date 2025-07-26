@@ -1,14 +1,26 @@
 {
-  "app/page.tsx -> @/components/Hand3DModel": {
-    "id": "app/page.tsx -> @/components/Hand3DModel",
+  "app/page.tsx -> @/components/AimBackgroundController": {
+    "id": "app/page.tsx -> @/components/AimBackgroundController",
     "files": [
-      "static/chunks/_app-pages-browser_src_components_Hand3DModel_tsx.js"
+      "static/chunks/_app-pages-browser_src_components_AimBackgroundController_tsx.js"
     ]
   },
-  "app/page.tsx -> @/components/Sketch": {
-    "id": "app/page.tsx -> @/components/Sketch",
+  "app/page.tsx -> @/components/CarDrivingController": {
+    "id": "app/page.tsx -> @/components/CarDrivingController",
     "files": [
-      "static/chunks/_app-pages-browser_src_components_Sketch_tsx.js"
+      "static/chunks/_app-pages-browser_src_components_CarDrivingController_tsx.js"
+    ]
+  },
+  "app/page.tsx -> @/components/GLBHandRenderer": {
+    "id": "app/page.tsx -> @/components/GLBHandRenderer",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_GLBHandRenderer_tsx.js"
+    ]
+  },
+  "app/page.tsx -> @/components/PointShootController": {
+    "id": "app/page.tsx -> @/components/PointShootController",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_PointShootController_tsx.js"
     ]
   },
   "app/page.tsx -> @/components/StableHandRenderer": {

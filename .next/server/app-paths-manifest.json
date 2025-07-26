@@ -1,3 +1,4 @@
 {
+  "/mouse-test/page": "app/mouse-test/page.js",
   "/page": "app/page.js"
 }

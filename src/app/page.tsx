@@ -11,6 +11,9 @@ import { detectAllGestures } from '@/lib/gestureDetection';
 // Dynamically import p5 to avoid SSR issues
 const StableHandRenderer = dynamic(() => import('@/components/StableHandRenderer'), { ssr: false });
 const GLBHandRenderer = dynamic(() => import('@/components/GLBHandRenderer'), { ssr: false });
+const CarDrivingController = dynamic(() => import('@/components/CarDrivingController'), { ssr: false });
+const PointShootController = dynamic(() => import('@/components/PointShootController'), { ssr: false });
+const AimBackgroundController = dynamic(() => import('@/components/AimBackgroundController'), { ssr: false });
 
 export default function Home() {
   const [cameraStatus, setCameraStatus] = useState<CameraStatus>({
@@ -25,7 +28,7 @@ export default function Home() {
   });
   
   const [showOpenHandIndicator, setShowOpenHandIndicator] = useState(false);
-  const [renderMode, setRenderMode] = useState<'vector' | '3d-hand'>('vector');
+  const [renderMode, setRenderMode] = useState<'depth-reach' | '3d-hand' | 'car-driving' | 'point-shoot' | 'aim-background'>('depth-reach');
   
   const handsRef = useRef<any>(null);
   const cameraRef = useRef<any>(null);
@@ -398,7 +401,7 @@ export default function Home() {
       />
       
       <div className="canvas-container">
-        {renderMode === 'vector' && (
+        {renderMode === 'depth-reach' && (
           <StableHandRenderer 
             leftHand={multiHandData.leftHand}
             rightHand={multiHandData.rightHand}
@@ -407,6 +410,24 @@ export default function Home() {
         {renderMode === '3d-hand' && (
           <GLBHandRenderer 
             multiHandData={multiHandData}
+          />
+        )}
+        {renderMode === 'car-driving' && (
+          <CarDrivingController 
+            leftHand={multiHandData.leftHand}
+            rightHand={multiHandData.rightHand}
+          />
+        )}
+        {renderMode === 'point-shoot' && (
+          <PointShootController 
+            leftHand={multiHandData.leftHand}
+            rightHand={multiHandData.rightHand}
+          />
+        )}
+        {renderMode === 'aim-background' && (
+          <AimBackgroundController 
+            leftHand={multiHandData.leftHand}
+            rightHand={multiHandData.rightHand}
           />
         )}
       </div>
@@ -426,9 +447,9 @@ export default function Home() {
         <div style={{ marginBottom: '8px', fontSize: '12px', opacity: 0.8 }}>Render Mode:</div>
         <div style={{ display: 'flex', gap: '5px', flexDirection: 'column' }}>
           <button
-            onClick={() => setRenderMode('vector')}
+            onClick={() => setRenderMode('depth-reach')}
             style={{
-              background: renderMode === 'vector' ? '#4CAF50' : '#666',
+              background: renderMode === 'depth-reach' ? '#4CAF50' : '#666',
               color: 'white',
               border: 'none',
               borderRadius: '5px',
@@ -437,7 +458,7 @@ export default function Home() {
               fontSize: '11px'
             }}
           >
-            🎯 Vector
+            📏 Depth & Reach
           </button>
           <button
             onClick={() => setRenderMode('3d-hand')}
@@ -452,6 +473,48 @@ export default function Home() {
             }}
           >
             🤚 3D Hand
+          </button>
+          <button
+            onClick={() => setRenderMode('car-driving')}
+            style={{
+              background: renderMode === 'car-driving' ? '#4CAF50' : '#666',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              padding: '6px 10px',
+              cursor: 'pointer',
+              fontSize: '11px'
+            }}
+          >
+            🚗 Car Driving
+          </button>
+          <button
+            onClick={() => setRenderMode('point-shoot')}
+            style={{
+              background: renderMode === 'point-shoot' ? '#4CAF50' : '#666',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              padding: '6px 10px',
+              cursor: 'pointer',
+              fontSize: '11px'
+            }}
+          >
+            🔫 Point & Shoot
+          </button>
+          <button
+            onClick={() => setRenderMode('aim-background')}
+            style={{
+              background: renderMode === 'aim-background' ? '#4CAF50' : '#666',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              padding: '6px 10px',
+              cursor: 'pointer',
+              fontSize: '11px'
+            }}
+          >
+            🎯 Aim & Background
           </button>
         </div>
       </div>

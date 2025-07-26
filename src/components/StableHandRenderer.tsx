@@ -30,6 +30,20 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0, z: 0 });
   const cursorSmoothingRef = useRef({ x: 0, y: 0, z: 0 });
 
+  // Control states
+  const [enableWASDControls, setEnableWASDControls] = useState(true);
+  const [enableClicking, setEnableClicking] = useState(true);
+  const [lastKeyPress, setLastKeyPress] = useState<string>('');
+  const [controlLogs, setControlLogs] = useState<string[]>([]);
+
+  // Viewport zones for WASD controls
+  const [viewportZones, setViewportZones] = useState({
+    leftZone: 0.3,    // Left 30% of viewport = A
+    rightZone: 0.7,   // Right 30% of viewport = D
+    topZone: 0.3,     // Top 30% of viewport = W
+    bottomZone: 0.7   // Bottom 30% of viewport = S
+  });
+
   useEffect(() => {
     if (!canvasRef.current) return;
 
@@ -69,6 +83,10 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
         // Draw depth ruler first (behind everything)
         drawDepthRuler(p);
 
+        // Analyze gestures and controls
+        let leftGestures: { isPinching: boolean; isGrabbing: boolean; isThumbClicking: boolean; pinchPoint: { x: number; y: number; z: number } | null; wristPosition: { x: number; y: number; z: number } | null } = { isPinching: false, isGrabbing: false, isThumbClicking: false, pinchPoint: null, wristPosition: null };
+        let rightGestures: { isPinching: boolean; isGrabbing: boolean; isThumbClicking: boolean; pinchPoint: { x: number; y: number; z: number } | null; wristPosition: { x: number; y: number; z: number } | null } = { isPinching: false, isGrabbing: false, isThumbClicking: false, pinchPoint: null, wristPosition: null };
+
         // Simple smoothing - only update if landmarks exist
         if (leftHandLandmarks && leftHandLandmarks.length > 0) {
           if (!previousLeftLandmarks) {
@@ -83,6 +101,7 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
               }
             }
           }
+          leftGestures = checkGestures(previousLeftLandmarks);
           renderHand(p, previousLeftLandmarks, [0, 255, 0], 'left');
         } else {
           previousLeftLandmarks = null;
@@ -101,10 +120,17 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
               }
             }
           }
+          rightGestures = checkGestures(previousRightLandmarks);
           renderHand(p, previousRightLandmarks, [0, 0, 255], 'right');
         } else {
           previousRightLandmarks = null;
         }
+
+        // Handle controls based on gestures
+        handleControls(leftGestures, rightGestures);
+
+        // Draw viewport zones for WASD controls
+        drawViewportZones(p);
 
         frameCount++;
       };
@@ -174,15 +200,15 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
         p.strokeWeight(1);
         
         // Horizontal perspective lines
-        for (let depth = minDepth; depth >= maxDepth; depth -= 50) {
-          const width = p.map(depth, minDepth, maxDepth, 400, 20); // Width decreases dramatically with depth
+        for (let depth = minDepth; depth >= maxDepth; depth -= 80) {
+          const width = p.map(depth, minDepth, maxDepth, 400, 10); // Width decreases extremely with depth
           p.line(-width, 0, depth, width, 0, depth);
         }
         
         // Vertical perspective lines
         for (let x = -200; x <= 200; x += 50) {
           const startWidth = 400;
-          const endWidth = 20;
+          const endWidth = 10;
           const startY = p.height / 2 - 50;
           const endY = 0;
           
@@ -219,21 +245,20 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
         avgZ = validLandmarks > 0 ? avgZ / validLandmarks : 0;
         
         // Apply depth configuration - restingDepth is now the calibrated resting position
-        const depthZ = -avgZ; // Flip depth for intuitive control
+        const depthZ = avgZ; // NO FLIP - direct mapping for natural movement
         
         // Calculate depth offset from resting position
         const depthOffset = depthZ - restingDepth;
         
-        // DRAMATICALLY increase depth sensitivity for small hand movements
-        // Small real hand movements = large virtual reach distances (3-5 meters)
-        const depthSensitivity = 500.0; // EXTREME sensitivity for dramatic reach
+        // Set boundaries for small hand movements (small real movement = larger UI movement)
+        const depthSensitivity = 200.0; // Moderate sensitivity for natural feel
         const depthFactor = depthOffset * depthSensitivity;
         
-        // Clamp depth factor to dramatic range (3-5 meters into UI)
-        const clampedDepthFactor = p.constrain(depthFactor, 300, -800); // 300cm back to 800cm forward (8 meters!)
+        // Clamp depth factor to reasonable range (small movement area)
+        const clampedDepthFactor = p.constrain(depthFactor, -100, 100); // 100cm forward/backward
         
-        // Calculate perspective scale for dots (smaller when further away)
-        const perspectiveScale = p.map(clampedDepthFactor, 300, -800, 1.0, 0.05); // Scale from 1.0 to 0.05 for extreme perspective
+        // Calculate perspective scale for dots (smaller when closer to camera, bigger when further)
+        const perspectiveScale = p.map(clampedDepthFactor, -100, 100, 0.3, 1.5); // Scale from 0.3 (close) to 1.5 (far)
         
         // Update current depth for calibration
         if (handType === 'left') {
@@ -280,6 +305,7 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
         for (const [start, end] of connections) {
           if (landmarks[start] && landmarks[end]) {
             // Draw vectors at CONSTANT depth - never changes regardless of hand movement
+            // Direct mapping (no mirroring) - left hand moves left, right hand moves right
             const x1 = p.map(landmarks[start].x, 0, 1, -p.width/2, p.width/2);
             const y1 = p.map(landmarks[start].y, 0, 1, -p.height/2, p.height/2);
             const z1 = 0; // CONSTANT depth at resting position (point zero)
@@ -298,6 +324,7 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
           const landmark = landmarks[i];
           if (!landmark) continue;
 
+          // Direct mapping (no mirroring) - natural hand movement
           const x = p.map(landmark.x, 0, 1, -p.width/2, p.width/2);
           const y = p.map(landmark.y, 0, 1, -p.height/2, p.height/2);
           const z = clampedDepthFactor; // Dots move with depth offset from resting position
@@ -345,15 +372,15 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
         p.pop();
       };
 
-      const checkGestures = (landmarks: any[]): { isPinching: boolean; isGrabbing: boolean; pinchPoint: { x: number; y: number; z: number } | null; wristPosition: { x: number; y: number; z: number } | null } => {
-        if (!landmarks || landmarks.length < 21) return { isPinching: false, isGrabbing: false, pinchPoint: null, wristPosition: null };
+      const checkGestures = (landmarks: any[]): { isPinching: boolean; isGrabbing: boolean; isThumbClicking: boolean; pinchPoint: { x: number; y: number; z: number } | null; wristPosition: { x: number; y: number; z: number } | null } => {
+        if (!landmarks || landmarks.length < 21) return { isPinching: false, isGrabbing: false, isThumbClicking: false, pinchPoint: null, wristPosition: null };
         
         // Check for pinch between thumb tip and index finger tip
         const thumbTip = landmarks[4];
         const indexTip = landmarks[8];
         const wrist = landmarks[0];
         
-        if (!thumbTip || !indexTip || !wrist) return { isPinching: false, isGrabbing: false, pinchPoint: null, wristPosition: null };
+        if (!thumbTip || !indexTip || !wrist) return { isPinching: false, isGrabbing: false, isThumbClicking: false, pinchPoint: null, wristPosition: null };
         
         // Calculate distance between thumb and index finger tips
         const dx = thumbTip.x - indexTip.x;
@@ -364,6 +391,25 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
         // Pinch threshold
         const pinchThreshold = 0.15;
         const isPinching = distance < pinchThreshold;
+        
+        // Check for thumb clicking (thumb extended up and down)
+        const thumbBase = landmarks[2];
+        const thumbMiddle = landmarks[3];
+        
+        let isThumbClicking = false;
+        if (thumbBase && thumbMiddle && thumbTip) {
+          // Check if thumb is extended upward (clicking gesture)
+          const thumbExtension = Math.sqrt(
+            Math.pow(thumbTip.x - thumbBase.x, 2) +
+            Math.pow(thumbTip.y - thumbBase.y, 2) +
+            Math.pow(thumbTip.z - thumbBase.z, 2)
+          );
+          
+          // Thumb clicking threshold - thumb should be extended but not too much
+          const thumbClickThreshold = 0.12;
+          const thumbClickMax = 0.25;
+          isThumbClicking = thumbExtension > thumbClickThreshold && thumbExtension < thumbClickMax;
+        }
         
         // Check for grab gesture (closed fist)
         const fingerTips = [landmarks[4], landmarks[8], landmarks[12], landmarks[16], landmarks[20]];
@@ -401,7 +447,137 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
           z: wrist.z
         };
         
-        return { isPinching, isGrabbing, pinchPoint, wristPosition };
+        return { isPinching, isGrabbing, isThumbClicking, pinchPoint, wristPosition };
+      };
+
+      const handleControls = (leftGestures: any, rightGestures: any) => {
+        // Handle WASD controls based on hand position in viewport
+        if (enableWASDControls) {
+          const leftWrist = leftGestures.wristPosition;
+          const rightWrist = rightGestures.wristPosition;
+          
+          let wasdKey = '';
+          
+          // Use the hand that's more active (closer to camera)
+          const activeHand = leftWrist && rightWrist ? 
+            (leftWrist.z < rightWrist.z ? leftWrist : rightWrist) : 
+            (leftWrist || rightWrist);
+          
+          if (activeHand) {
+            // Map viewport position to WASD keys
+            if (activeHand.x < viewportZones.leftZone) {
+              wasdKey = 'A';
+            } else if (activeHand.x > viewportZones.rightZone) {
+              wasdKey = 'D';
+            }
+            
+            if (activeHand.y < viewportZones.topZone) {
+              wasdKey = wasdKey ? wasdKey + '+W' : 'W';
+            } else if (activeHand.y > viewportZones.bottomZone) {
+              wasdKey = wasdKey ? wasdKey + '+S' : 'S';
+            }
+            
+            if (wasdKey && wasdKey !== lastKeyPress) {
+              simulateKeyPress(wasdKey);
+              addControlLog(`🎮 WASD: ${wasdKey} | Hand: ${activeHand.x.toFixed(2)}, ${activeHand.y.toFixed(2)}`);
+            }
+          }
+        }
+        
+        // Handle clicking (thumb clicking gesture)
+        if (enableClicking) {
+          const leftClicking = leftGestures.isThumbClicking;
+          const rightClicking = rightGestures.isThumbClicking;
+          
+          if (leftClicking || rightClicking) {
+            if (lastKeyPress !== 'CLICK') {
+              simulateKeyPress('CLICK');
+              addControlLog(`🖱️ CLICK: ${leftClicking ? 'Left' : 'Right'} hand thumb clicking`);
+            }
+          }
+        }
+      };
+
+      const simulateKeyPress = (key: string) => {
+        console.log(`⌨️ SIMULATING KEY: ${key}`);
+        setLastKeyPress(key);
+        
+        // Create and dispatch keyboard events
+        if (key !== 'CLICK') {
+          const keyDownEvent = new KeyboardEvent('keydown', {
+            key: key.toLowerCase(),
+            code: `Key${key}`,
+            keyCode: key.charCodeAt(0),
+            which: key.charCodeAt(0),
+            bubbles: true,
+            cancelable: true
+          });
+
+          const keyUpEvent = new KeyboardEvent('keyup', {
+            key: key.toLowerCase(),
+            code: `Key${key}`,
+            keyCode: key.charCodeAt(0),
+            which: key.charCodeAt(0),
+            bubbles: true,
+            cancelable: true
+          });
+
+          document.dispatchEvent(keyDownEvent);
+          
+          setTimeout(() => {
+            document.dispatchEvent(keyUpEvent);
+          }, 100);
+        } else {
+          // Simulate mouse click
+          const clickEvent = new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            view: window
+          });
+          document.dispatchEvent(clickEvent);
+        }
+      };
+
+      const addControlLog = (message: string) => {
+        const timestamp = new Date().toLocaleTimeString();
+        const logEntry = `[${timestamp}] ${message}`;
+        setControlLogs(prev => [...prev.slice(-9), logEntry]); // Keep last 10 logs
+        console.log(logEntry);
+      };
+
+      const drawViewportZones = (p: p5) => {
+        p.push();
+        p.translate(-p.width/2, -p.height/2, 0);
+        
+        // Draw viewport zones for WASD controls
+        p.stroke(255, 255, 0, 100);
+        p.strokeWeight(1);
+        p.noFill();
+        
+        // Left zone (A)
+        p.rect(0, 0, p.width * viewportZones.leftZone, p.height);
+        
+        // Right zone (D)
+        p.rect(p.width * viewportZones.rightZone, 0, p.width * (1 - viewportZones.rightZone), p.height);
+        
+        // Top zone (W)
+        p.rect(0, 0, p.width, p.height * viewportZones.topZone);
+        
+        // Bottom zone (S)
+        p.rect(0, p.height * viewportZones.bottomZone, p.width, p.height * (1 - viewportZones.bottomZone));
+        
+        // Zone labels
+        p.fill(255, 255, 0, 150);
+        p.noStroke();
+        p.textSize(12);
+        p.textAlign(p.CENTER);
+        
+        p.text('A', p.width * viewportZones.leftZone / 2, p.height / 2);
+        p.text('D', p.width * (1 + viewportZones.rightZone) / 2, p.height / 2);
+        p.text('W', p.width / 2, p.height * viewportZones.topZone / 2);
+        p.text('S', p.width / 2, p.height * (1 + viewportZones.bottomZone) / 2);
+        
+        p.pop();
       };
     };
 
@@ -413,7 +589,7 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
         p5InstanceRef.current = null;
       }
     };
-  }, [sensitivityX, sensitivityY, offsetX, offsetY, calibrationMode, depthEffectEnabled, restingDepth]);
+  }, [sensitivityX, sensitivityY, offsetX, offsetY, calibrationMode, depthEffectEnabled, restingDepth, enableWASDControls, enableClicking, viewportZones]);
 
   // Update hands data without triggering re-renders
   useEffect(() => {
@@ -491,7 +667,7 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
         minWidth: '200px'
       }}>
         <div style={{ marginBottom: '10px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Hand Depth Controls</span>
+          <span>📏 Depth & Reach Controls</span>
           <button
             onClick={() => setShowControls(!showControls)}
             style={{
@@ -568,6 +744,118 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
               </button>
             </div>
             
+            {/* Control Options */}
+            <div style={{ marginBottom: '8px', padding: '8px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '5px' }}>
+              <div style={{ fontSize: '11px', marginBottom: '5px', color: '#FFD700', fontWeight: 'bold' }}>
+                🎮 Control Options
+              </div>
+              
+              <label style={{ display: 'block', marginBottom: '5px', fontSize: '10px' }}>
+                <input
+                  type="checkbox"
+                  checked={enableWASDControls}
+                  onChange={(e) => setEnableWASDControls(e.target.checked)}
+                  style={{ marginRight: '5px' }}
+                />
+                Enable WASD Controls
+              </label>
+              
+              <label style={{ display: 'block', marginBottom: '5px', fontSize: '10px' }}>
+                <input
+                  type="checkbox"
+                  checked={enableClicking}
+                  onChange={(e) => setEnableClicking(e.target.checked)}
+                  style={{ marginRight: '5px' }}
+                />
+                Enable Thumb Clicking
+              </label>
+            </div>
+
+            {/* Viewport Zone Controls */}
+            <div style={{ marginBottom: '8px', padding: '8px', background: 'rgba(0, 150, 255, 0.1)', borderRadius: '5px' }}>
+              <div style={{ fontSize: '11px', marginBottom: '5px', color: '#0096FF', fontWeight: 'bold' }}>
+                🎯 Viewport Zones
+              </div>
+              
+              <div style={{ marginBottom: '5px' }}>
+                <label style={{ fontSize: '10px', color: '#ccc', display: 'block' }}>
+                  Left Zone (A): {viewportZones.leftZone.toFixed(2)}
+                </label>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="0.5"
+                  step="0.05"
+                  value={viewportZones.leftZone}
+                  onChange={(e) => setViewportZones(prev => ({ ...prev, leftZone: parseFloat(e.target.value) }))}
+                  style={{ width: '100%' }}
+                  aria-label="Left zone threshold"
+                />
+              </div>
+              
+              <div style={{ marginBottom: '5px' }}>
+                <label style={{ fontSize: '10px', color: '#ccc', display: 'block' }}>
+                  Right Zone (D): {viewportZones.rightZone.toFixed(2)}
+                </label>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="0.9"
+                  step="0.05"
+                  value={viewportZones.rightZone}
+                  onChange={(e) => setViewportZones(prev => ({ ...prev, rightZone: parseFloat(e.target.value) }))}
+                  style={{ width: '100%' }}
+                  aria-label="Right zone threshold"
+                />
+              </div>
+              
+              <div style={{ marginBottom: '5px' }}>
+                <label style={{ fontSize: '10px', color: '#ccc', display: 'block' }}>
+                  Top Zone (W): {viewportZones.topZone.toFixed(2)}
+                </label>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="0.5"
+                  step="0.05"
+                  value={viewportZones.topZone}
+                  onChange={(e) => setViewportZones(prev => ({ ...prev, topZone: parseFloat(e.target.value) }))}
+                  style={{ width: '100%' }}
+                  aria-label="Top zone threshold"
+                />
+              </div>
+              
+              <div style={{ marginBottom: '5px' }}>
+                <label style={{ fontSize: '10px', color: '#ccc', display: 'block' }}>
+                  Bottom Zone (S): {viewportZones.bottomZone.toFixed(2)}
+                </label>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="0.9"
+                  step="0.05"
+                  value={viewportZones.bottomZone}
+                  onChange={(e) => setViewportZones(prev => ({ ...prev, bottomZone: parseFloat(e.target.value) }))}
+                  style={{ width: '100%' }}
+                  aria-label="Bottom zone threshold"
+                />
+              </div>
+            </div>
+
+            {/* Control Logs */}
+            <div style={{ marginBottom: '8px', padding: '8px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '5px', maxHeight: '120px', overflowY: 'auto' }}>
+              <div style={{ fontSize: '11px', marginBottom: '5px', color: '#4CAF50', fontWeight: 'bold' }}>
+                📝 Control Logs
+              </div>
+              <div style={{ fontSize: '9px', lineHeight: '1.2' }}>
+                {controlLogs.map((log, index) => (
+                  <div key={index} style={{ color: '#ccc', marginBottom: '2px' }}>
+                    {log}
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div style={{ display: 'flex', gap: '5px' }}>
               <button
                 onClick={saveCalibration}
