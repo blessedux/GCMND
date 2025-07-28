@@ -10,7 +10,7 @@ import { detectAllGestures } from '@/lib/gestureDetection';
 
 // Dynamically import p5 to avoid SSR issues
 const StableHandRenderer = dynamic(() => import('@/components/StableHandRenderer'), { ssr: false });
-const GLBHandRenderer = dynamic(() => import('@/components/GLBHandRenderer'), { ssr: false });
+const GestureRecorder = dynamic(() => import('@/components/GestureRecorder'), { ssr: false });
 const CarDrivingController = dynamic(() => import('@/components/CarDrivingController'), { ssr: false });
 const PointShootController = dynamic(() => import('@/components/PointShootController'), { ssr: false });
 const AimBackgroundController = dynamic(() => import('@/components/AimBackgroundController'), { ssr: false });
@@ -28,7 +28,7 @@ export default function Home() {
   });
   
   const [showOpenHandIndicator, setShowOpenHandIndicator] = useState(false);
-  const [renderMode, setRenderMode] = useState<'depth-reach' | '3d-hand' | 'car-driving' | 'point-shoot' | 'aim-background'>('depth-reach');
+  const [renderMode, setRenderMode] = useState<'depth-reach' | 'gesture-recorder' | 'car-driving' | 'point-shoot' | 'aim-background'>('depth-reach');
   
   const handsRef = useRef<any>(null);
   const cameraRef = useRef<any>(null);
@@ -407,9 +407,10 @@ export default function Home() {
             rightHand={multiHandData.rightHand}
           />
         )}
-        {renderMode === '3d-hand' && (
-          <GLBHandRenderer 
-            multiHandData={multiHandData}
+        {renderMode === 'gesture-recorder' && (
+          <GestureRecorder 
+            leftHand={multiHandData.leftHand}
+            rightHand={multiHandData.rightHand}
           />
         )}
         {renderMode === 'car-driving' && (
@@ -461,9 +462,9 @@ export default function Home() {
             📏 Depth & Reach
           </button>
           <button
-            onClick={() => setRenderMode('3d-hand')}
+            onClick={() => setRenderMode('gesture-recorder')}
             style={{
-              background: renderMode === '3d-hand' ? '#4CAF50' : '#666',
+              background: renderMode === 'gesture-recorder' ? '#4CAF50' : '#666',
               color: 'white',
               border: 'none',
               borderRadius: '5px',
@@ -472,7 +473,7 @@ export default function Home() {
               fontSize: '11px'
             }}
           >
-            🤚 3D Hand
+            🤚 Gesture Recorder
           </button>
           <button
             onClick={() => setRenderMode('car-driving')}
@@ -515,6 +516,20 @@ export default function Home() {
             }}
           >
             🎯 Aim & Background
+          </button>
+          <button
+            onClick={() => window.open('/eth-3d', '_blank')}
+            style={{
+              background: '#FF6B35',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              padding: '6px 10px',
+              cursor: 'pointer',
+              fontSize: '11px'
+            }}
+          >
+            🎨 ETH Logo 3D
           </button>
         </div>
       </div>

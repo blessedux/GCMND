@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gesture Mouse Controller Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        
+        .test-area {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            min-height: 200px;
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+        }
+        
+        .clickable-button {
+            background: #4CAF50;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .clickable-button:hover {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+        
+        .clickable-button:active {
+            transform: scale(0.95);
+        }
+        
+        .draggable-box {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border-radius: 10px;
+            cursor: move;
+            display: inline-block;
+            margin: 10px;
+            text-align: center;
+            line-height: 100px;
+            font-weight: bold;
+            user-select: none;
+            transition: transform 0.2s ease;
+        }
+        
+        .draggable-box:hover {
+            transform: scale(1.1);
+        }
+        
+        .instructions {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .status {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .test-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .test-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .click-counter {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Gesture Mouse Controller Test</h1>
+        
+        <div class="instructions">
+            <h3>📋 How to Test:</h3>
+            <ol>
+                <li><strong>Install the Chrome Extension</strong> (if not already done)</li>
+                <li><strong>Click the extension icon</strong> in your Chrome toolbar</li>
+                <li><strong>Click "Start Gesture Control"</strong></li>
+                <li><strong>Move your hand</strong> to control the cursor</li>
+                <li><strong>Pinch your thumb and index finger</strong> to click</li>
+                <li><strong>Test the interactive elements below</strong></li>
+            </ol>
+        </div>
+        
+        <div class="status" id="status">
+            🔴 Extension Status: Not Detected
+        </div>
+        
+        <div class="test-area">
+            <h3>🖱️ Mouse Movement Test</h3>
+            <p>Move your hand to control the cursor. You should see the cursor follow your hand movement.</p>
+            <div class="click-counter" id="clickCounter">Clicks: 0</div>
+        </div>
+        
+        <div class="test-area">
+            <h3>🖱️ Click Test</h3>
+            <p>Pinch your thumb and index finger to click these buttons:</p>
+            <button class="clickable-button" onclick="incrementCounter()">Click Me! 🎯</button>
+            <button class="clickable-button" onclick="incrementCounter()">And Me! 🎯</button>
+            <button class="clickable-button" onclick="incrementCounter()">Me Too! 🎯</button>
+        </div>
+        
+        <div class="test-area">
+            <h3>🖱️ Drag Test</h3>
+            <p>Pinch and drag these boxes around:</p>
+            <div class="draggable-box" draggable="true">Drag Me! 📦</div>
+            <div class="draggable-box" draggable="true">Me Too! 📦</div>
+            <div class="draggable-box" draggable="true">And Me! 📦</div>
+        </div>
+        
+        <div class="test-area">
+            <h3>🖱️ Hover Test</h3>
+            <p>Hover over these items to see hover effects:</p>
+            <div class="test-grid">
+                <div class="test-item" onclick="incrementCounter()">Hover Item 1</div>
+                <div class="test-item" onclick="incrementCounter()">Hover Item 2</div>
+                <div class="test-item" onclick="incrementCounter()">Hover Item 3</div>
+                <div class="test-item" onclick="incrementCounter()">Hover Item 4</div>
+                <div class="test-item" onclick="incrementCounter()">Hover Item 5</div>
+                <div class="test-item" onclick="incrementCounter()">Hover Item 6</div>
+            </div>
+        </div>
+        
+        <div class="test-area">
+            <h3>🎯 Extension Detection</h3>
+            <p>This page will automatically detect if the Gesture Mouse Controller extension is active.</p>
+            <button class="clickable-button" onclick="checkExtension()">Check Extension Status</button>
+        </div>
+    </div>
+
+    <script>
+        let clickCount = 0;
+        
+        function incrementCounter() {
+            clickCount++;
+            document.getElementById('clickCounter').textContent = `Clicks: ${clickCount}`;
+        }
+        
+        function checkExtension() {
+            // Try to communicate with the extension
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                chrome.runtime.sendMessage({action: 'ping'}, function(response) {
+                    if (chrome.runtime.lastError) {
+                        document.getElementById('status').innerHTML = '🔴 Extension Status: Not Active';
+                        document.getElementById('status').style.background = 'rgba(244, 67, 54, 0.3)';
+                    } else {
+                        document.getElementById('status').innerHTML = '🟢 Extension Status: Active';
+                        document.getElementById('status').style.background = 'rgba(76, 175, 80, 0.3)';
+                    }
+                });
+            } else {
+                document.getElementById('status').innerHTML = '🔴 Extension Status: Chrome Extension API Not Available';
+                document.getElementById('status').style.background = 'rgba(244, 67, 54, 0.3)';
+            }
+        }
+        
+        // Auto-check extension status on page load
+        window.addEventListener('load', function() {
+            setTimeout(checkExtension, 1000);
+        });
+        
+        // Add click event listeners to all interactive elements
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('clickable-button') || 
+                e.target.classList.contains('test-item') ||
+                e.target.classList.contains('draggable-box')) {
+                incrementCounter();
+            }
+        });
+        
+        // Add drag functionality
+        document.querySelectorAll('.draggable-box').forEach(box => {
+            box.addEventListener('dragstart', function(e) {
+                e.dataTransfer.setData('text/plain', '');
+            });
+        });
+        
+        document.addEventListener('dragover', function(e) {
+            e.preventDefault();
+        });
+        
+        document.addEventListener('drop', function(e) {
+            e.preventDefault();
+            const draggedElement = document.querySelector('.draggable-box[draggable="true"]');
+            if (draggedElement) {
+                const rect = e.target.getBoundingClientRect();
+                draggedElement.style.position = 'absolute';
+                draggedElement.style.left = (e.clientX - rect.left) + 'px';
+                draggedElement.style.top = (e.clientY - rect.top) + 'px';
+            }
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MediaPipe Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover { background: #45a049; }
+        video {
+            border: 3px solid #333;
+            margin: 20px;
+            max-width: 400px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 MediaPipe Hand Detection Test</h1>
+        
+        <button onclick="startTest()">Start MediaPipe Test</button>
+        <button onclick="stopTest()">Stop Test</button>
+        
+        <div id="status" class="status info">Ready to test</div>
+        
+        <video id="video" autoplay muted playsinline style="display: none;"></video>
+        
+        <div id="results"></div>
+    </div>
+    
+    <!-- MediaPipe scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    
+    <script>
+        let camera = null;
+        let hands = null;
+        let isActive = false;
+        let frameCount = 0;
+        let handDetectedCount = 0;
+        
+        const video = document.getElementById('video');
+        const status = document.getElementById('status');
+        const results = document.getElementById('results');
+        
+        function updateStatus(message, type = 'info') {
+            status.textContent = message;
+            status.className = `status ${type}`;
+            console.log('Status:', message);
+        }
+        
+        async function startTest() {
+            try {
+                updateStatus('Starting MediaPipe test...', 'info');
+                
+                // Request camera
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    } 
+                });
+                
+                video.srcObject = stream;
+                video.style.display = 'block';
+                updateStatus('Camera access granted! Setting up MediaPipe...', 'info');
+                
+                // Setup MediaPipe
+                console.log('Setting up MediaPipe...');
+                
+                hands = new Hands({
+                    locateFile: (file) => {
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                    }
+                });
+                
+                hands.setOptions({
+                    maxNumHands: 1,
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+                
+                hands.onResults(onResults);
+                console.log('MediaPipe setup complete');
+                
+                // Test with blank image first
+                console.log('Testing MediaPipe with blank image...');
+                const canvas = document.createElement('canvas');
+                canvas.width = 640;
+                canvas.height = 480;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = 'black';
+                ctx.fillRect(0, 0, 640, 480);
+                
+                await hands.send({ image: canvas });
+                console.log('✅ MediaPipe test with blank image completed');
+                
+                // Start camera processing
+                camera = new Camera(video, {
+                    onFrame: async () => {
+                        if (hands) {
+                            await hands.send({ image: video });
+                        }
+                    },
+                    width: 640,
+                    height: 480
+                });
+                
+                await camera.start();
+                
+                isActive = true;
+                updateStatus('MediaPipe test active! Hold your hand in front of the camera.', 'success');
+                
+            } catch (error) {
+                console.error('Test failed:', error);
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        function onResults(results) {
+            frameCount++;
+            console.log(`🎯 Frame ${frameCount}: onResults called!`, results);
+            
+            if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+                console.log('No hand detected');
+                updateResults();
+                return;
+            }
+            
+            handDetectedCount++;
+            const landmarks = results.multiHandLandmarks[0];
+            console.log('✅ Hand detected! Landmarks:', landmarks.length);
+            
+            // Get hand position
+            const indexTip = landmarks[8];
+            const thumbTip = landmarks[4];
+            
+            console.log(`Hand position: x=${indexTip.x.toFixed(3)}, y=${indexTip.y.toFixed(3)}`);
+            
+            // Calculate pinch distance
+            const pinchDistance = Math.sqrt(
+                Math.pow(thumbTip.x - indexTip.x, 2) + 
+                Math.pow(thumbTip.y - indexTip.y, 2)
+            );
+            
+            console.log(`Pinch distance: ${pinchDistance.toFixed(3)}`);
+            
+            updateResults();
+        }
+        
+        function updateResults() {
+            const detectionRate = frameCount > 0 ? (handDetectedCount / frameCount * 100).toFixed(1) : 0;
+            results.innerHTML = `
+                <h3>Test Results:</h3>
+                <p><strong>Frames processed:</strong> ${frameCount}</p>
+                <p><strong>Hands detected:</strong> ${handDetectedCount}</p>
+                <p><strong>Detection rate:</strong> ${detectionRate}%</p>
+            `;
+        }
+        
+        function stopTest() {
+            if (camera) {
+                camera.stop();
+                camera = null;
+            }
+            
+            if (hands) {
+                hands.close();
+                hands = null;
+            }
+            
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            
+            video.style.display = 'none';
+            isActive = false;
+            updateStatus('Test stopped', 'info');
+        }
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', stopTest);
+    </script>
+</body>
+</html> 

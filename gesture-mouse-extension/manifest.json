@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Gesture Mouse Control",
+  "version": "1.0",
+  "description": "Control mouse with hand gestures using MediaPipe",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "camera"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["video-display.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "background": {
+    "service_worker": "background-camera.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Gesture Mouse Control"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "mediapipe/*",
+        "mediapipe-init.js",
+        "camera-init.js",
+        "camera-stop.js",
+        "hands-check.js",
+        "*.js",
+        "*.wasm"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+} 

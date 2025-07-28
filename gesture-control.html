@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gesture Mouse Control</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .controls {
+            margin: 30px 0;
+        }
+        
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            margin: 10px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .start-btn {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .start-btn:hover { background: #45a049; }
+        .start-btn:disabled { background: #cccccc; cursor: not-allowed; }
+        
+        .stop-btn {
+            background: #f44336;
+            color: white;
+        }
+        
+        .stop-btn:hover { background: #da190b; }
+        .stop-btn:disabled { background: #cccccc; cursor: not-allowed; }
+        
+        .video-container {
+            position: relative;
+            margin: 20px auto;
+            width: 400px;
+            height: 300px;
+            border: 3px solid #fff;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #000;
+        }
+        
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .status {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 16px;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .status.active {
+            background: rgba(76, 175, 80, 0.3);
+            border: 2px solid #4CAF50;
+        }
+        
+        .status.error {
+            background: rgba(244, 67, 54, 0.3);
+            border: 2px solid #f44336;
+        }
+        
+        .instructions {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            backdrop-filter: blur(10px);
+        }
+        
+        .instructions h3 {
+            margin-top: 0;
+            color: #ffd700;
+        }
+        
+        .instructions ul {
+            text-align: left;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .instructions li {
+            margin: 10px 0;
+            line-height: 1.5;
+        }
+        
+        .sensitivity-control {
+            margin: 20px 0;
+        }
+        
+        .sensitivity-control label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        input[type="range"] {
+            width: 200px;
+            margin: 10px;
+        }
+        
+        .sensitivity-value {
+            font-weight: bold;
+            color: #ffd700;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Gesture Mouse Control</h1>
+        
+        <div class="controls">
+            <button id="startBtn" class="start-btn">Start Gesture Control</button>
+            <button id="stopBtn" class="stop-btn" disabled>Stop Gesture Control</button>
+        </div>
+        
+        <div class="sensitivity-control">
+            <label for="sensitivity">Sensitivity:</label>
+            <input type="range" id="sensitivity" min="1" max="10" value="5">
+            <span class="sensitivity-value" id="sensitivityValue">5</span>
+        </div>
+        
+        <div id="status" class="status">Ready to start</div>
+        
+        <div class="video-container">
+            <video id="video" autoplay muted playsinline></video>
+        </div>
+        
+        <div class="instructions">
+            <h3>How to use:</h3>
+            <ul>
+                <li>🖐️ <strong>Move your hand</strong> to control the mouse cursor</li>
+                <li>👌 <strong>Pinch your thumb and index finger</strong> to click</li>
+                <li>🎯 <strong>Point with your index finger</strong> for precise control</li>
+                <li>⚙️ <strong>Adjust sensitivity</strong> if movement is too fast or slow</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    
+    <script>
+        let camera = null;
+        let hands = null;
+        let isActive = false;
+        let sensitivity = 5;
+        
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const video = document.getElementById('video');
+        const status = document.getElementById('status');
+        const sensitivitySlider = document.getElementById('sensitivity');
+        const sensitivityValue = document.getElementById('sensitivityValue');
+        
+        // Update sensitivity display
+        sensitivitySlider.addEventListener('input', function() {
+            sensitivity = parseInt(this.value);
+            sensitivityValue.textContent = sensitivity;
+        });
+        
+        // Start gesture control
+        startBtn.addEventListener('click', async () => {
+            try {
+                startBtn.disabled = true;
+                startBtn.textContent = 'Starting...';
+                updateStatus('Requesting camera access...', '');
+                
+                // Request camera
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    } 
+                });
+                
+                video.srcObject = stream;
+                updateStatus('Camera access granted! Setting up gesture detection...', '');
+                
+                // Setup MediaPipe
+                await setupMediaPipe();
+                
+                // Start processing
+                camera = new Camera(video, {
+                    onFrame: async () => {
+                        if (hands) {
+                            await hands.send({ image: video });
+                        }
+                    },
+                    width: 640,
+                    height: 480
+                });
+                
+                await camera.start();
+                
+                isActive = true;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                updateStatus('Gesture control active! Move your hand to control the mouse.', 'active');
+                
+            } catch (error) {
+                console.error('Failed to start:', error);
+                updateStatus(`Error: ${error.message}`, 'error');
+                startBtn.disabled = false;
+                startBtn.textContent = 'Start Gesture Control';
+            }
+        });
+        
+        // Stop gesture control
+        stopBtn.addEventListener('click', () => {
+            stopCamera();
+            updateStatus('Gesture control stopped', '');
+            startBtn.disabled = false;
+            startBtn.textContent = 'Start Gesture Control';
+            stopBtn.disabled = true;
+        });
+        
+        async function setupMediaPipe() {
+            console.log('Setting up MediaPipe...');
+            
+            hands = new Hands({
+                locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                }
+            });
+            
+            hands.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+            
+            hands.onResults(onResults);
+            console.log('MediaPipe setup complete');
+            
+            // Test MediaPipe with a simple image
+            console.log('Testing MediaPipe with blank image...');
+            const canvas = document.createElement('canvas');
+            canvas.width = 640;
+            canvas.height = 480;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, 640, 480);
+            
+            hands.send({ image: canvas }).then(() => {
+                console.log('✅ MediaPipe test completed successfully');
+            }).catch(error => {
+                console.error('❌ MediaPipe test failed:', error);
+            });
+        }
+        
+        function onResults(results) {
+            console.log('🎯 onResults called!', results);
+            
+            if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+                console.log('No hand detected');
+                return;
+            }
+            
+            const landmarks = results.multiHandLandmarks[0];
+            if (!landmarks) {
+                console.log('No landmarks found');
+                return;
+            }
+            
+            console.log('Hand detected! Processing landmarks...');
+            
+            // Get hand position (index finger tip)
+            const indexTip = landmarks[8];
+            const thumbTip = landmarks[4];
+            
+            // Convert to screen coordinates with sensitivity
+            const screenX = indexTip.x * window.innerWidth * (sensitivity / 5);
+            const screenY = indexTip.y * window.innerHeight * (sensitivity / 5);
+            
+            console.log(`Hand position: x=${screenX.toFixed(0)}, y=${screenY.toFixed(0)}`);
+            
+            // Calculate pinch distance
+            const pinchDistance = Math.sqrt(
+                Math.pow(thumbTip.x - indexTip.x, 2) + 
+                Math.pow(thumbTip.y - indexTip.y, 2)
+            );
+            
+            const isPinching = pinchDistance < 0.1;
+            
+            console.log(`Pinch distance: ${pinchDistance.toFixed(3)}, Is pinching: ${isPinching}`);
+            
+            // Move mouse cursor
+            moveMouse(screenX, screenY);
+            
+            // Handle click on pinch
+            if (isPinching) {
+                console.log('Pinch detected! Triggering click...');
+                clickMouse();
+            }
+        }
+        
+        function moveMouse(x, y) {
+            console.log(`Moving mouse to: x=${x.toFixed(0)}, y=${y.toFixed(0)}`);
+            const event = new MouseEvent('mousemove', {
+                view: window,
+                bubbles: true,
+                cancelable: true,
+                clientX: x,
+                clientY: y
+            });
+            document.elementFromPoint(x, y)?.dispatchEvent(event);
+        }
+        
+        function clickMouse() {
+            console.log('Clicking mouse...');
+            const event = new MouseEvent('mousedown', {
+                view: window,
+                bubbles: true,
+                cancelable: true,
+                button: 0
+            });
+            document.activeElement?.dispatchEvent(event);
+            
+            setTimeout(() => {
+                const upEvent = new MouseEvent('mouseup', {
+                    view: window,
+                    bubbles: true,
+                    cancelable: true,
+                    button: 0
+                });
+                document.activeElement?.dispatchEvent(upEvent);
+                console.log('Mouse click completed');
+            }, 100);
+        }
+        
+        function stopCamera() {
+            if (camera) {
+                camera.stop();
+                camera = null;
+            }
+            
+            if (hands) {
+                hands.close();
+                hands = null;
+            }
+            
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            
+            isActive = false;
+        }
+        
+        function updateStatus(message, type) {
+            status.textContent = message;
+            status.className = `status ${type}`;
+            console.log('Status:', message);
+        }
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', stopCamera);
+    </script>
+</body>
+</html> 

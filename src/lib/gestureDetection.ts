@@ -1,7 +1,7 @@
 import { HandLandmark, GestureResult, GestureThresholds } from '@/types';
 
 export const GESTURE_THRESHOLDS: GestureThresholds = {
-  PINCH: 0.015,
+  PINCH: 0.15, // Much more lenient threshold for easier pinch detection
   FIST: 0.08,
   OPEN_HAND: 0.06,
   POINTING: 0.06,
@@ -20,7 +20,13 @@ export function detectPinch(landmarks: HandLandmark[]): GestureResult {
     landmarks[8].x, landmarks[8].y
   );
   
+  // Debug pinch distance
+  if (pinchDistance < 0.2) { // Log when close to pinch
+    console.log('📏 Pinch distance:', pinchDistance.toFixed(4), 'threshold:', GESTURE_THRESHOLDS.PINCH);
+  }
+  
   return {
+    gesture: 'pinch',
     detected: pinchDistance < GESTURE_THRESHOLDS.PINCH,
     confidence: 1 - (pinchDistance / GESTURE_THRESHOLDS.PINCH),
     distance: pinchDistance
@@ -44,6 +50,7 @@ export function detectFist(landmarks: HandLandmark[]): GestureResult {
   
   const avgDistance = totalDistance / validFingers;
   return {
+    gesture: 'fist',
     detected: avgDistance < GESTURE_THRESHOLDS.FIST,
     confidence: 1 - (avgDistance / GESTURE_THRESHOLDS.FIST),
     distance: avgDistance
@@ -77,6 +84,7 @@ export function detectOpenHand(landmarks: HandLandmark[]): GestureResult {
   const isOpenHand = extendedFingers >= 1 && avgDistance > GESTURE_THRESHOLDS.OPEN_HAND * 0.7;
   
   return {
+    gesture: 'openHand',
     detected: isOpenHand,
     confidence: Math.min(avgDistance / GESTURE_THRESHOLDS.OPEN_HAND, 1),
     distance: avgDistance,
@@ -107,6 +115,7 @@ export function detectPointing(landmarks: HandLandmark[]): GestureResult {
   }
   
   return {
+    gesture: 'pointing',
     detected: indexDistance > GESTURE_THRESHOLDS.OPEN_HAND && otherFingersCurled,
     confidence: Math.min(indexDistance / GESTURE_THRESHOLDS.OPEN_HAND, 1),
     distance: indexDistance
@@ -139,6 +148,7 @@ export function detectVictory(landmarks: HandLandmark[]): GestureResult {
                       pinkyDistance < GESTURE_THRESHOLDS.POINTING;
   
   return {
+    gesture: 'victory',
     detected: indexMiddleExtended && othersCurled,
     confidence: Math.min((indexDistance + middleDistance) / (2 * GESTURE_THRESHOLDS.OPEN_HAND), 1),
     distance: (indexDistance + middleDistance) / 2
@@ -155,13 +165,14 @@ export function detectAllGestures(landmarks: HandLandmark[]): GestureResult {
   };
   
   // Find the gesture with highest confidence
-  let bestGesture: GestureResult = { gesture: 'None', confidence: 0 };
+  let bestGesture: GestureResult = { gesture: 'None', confidence: 0, detected: false };
   
   Object.entries(gestures).forEach(([gestureName, gestureResult]) => {
     if (gestureResult.detected && gestureResult.confidence > bestGesture.confidence) {
       bestGesture = {
         gesture: gestureName,
         confidence: gestureResult.confidence,
+        detected: true,
         distance: gestureResult.distance,
         extendedFingers: gestureResult.extendedFingers
       };

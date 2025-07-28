@@ -56,14 +56,14 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
       let frameCount = 0;
 
       p.setup = () => {
-        p.createCanvas(800, 640, p.WEBGL);
+        p.createCanvas(window.innerWidth, window.innerHeight, p.WEBGL);
         p.frameRate(30);
-        p.background(0);
+        p.background(0, 0); // Transparent background
       };
 
       p.draw = () => {
         p.clear();
-        p.background(0);
+        p.background(0, 0); // Transparent background
         
         // Update landmarks from props (only when they change)
         if (handsDataRef.current.left !== leftHandLandmarks) {
@@ -76,12 +76,7 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
         // Set up 3D perspective
         p.perspective(p.PI / 3, p.width / p.height, 0.1, 1000);
         
-        // Rotate view slightly for better 3D effect
-        p.rotateX(p.PI / 12);
-        p.rotateY(p.PI / 24);
-
-        // Draw depth ruler first (behind everything)
-        drawDepthRuler(p);
+        // No rotation - keep hands flat for overlay effect
 
         // Analyze gestures and controls
         let leftGestures: { isPinching: boolean; isGrabbing: boolean; isThumbClicking: boolean; pinchPoint: { x: number; y: number; z: number } | null; wristPosition: { x: number; y: number; z: number } | null } = { isPinching: false, isGrabbing: false, isThumbClicking: false, pinchPoint: null, wristPosition: null };
@@ -102,7 +97,7 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
             }
           }
           leftGestures = checkGestures(previousLeftLandmarks);
-          renderHand(p, previousLeftLandmarks, [0, 255, 0], 'left');
+          renderHand(p, previousLeftLandmarks, [255, 255, 255], 'left');
         } else {
           previousLeftLandmarks = null;
         }
@@ -121,16 +116,14 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
             }
           }
           rightGestures = checkGestures(previousRightLandmarks);
-          renderHand(p, previousRightLandmarks, [0, 0, 255], 'right');
+          renderHand(p, previousRightLandmarks, [255, 255, 255], 'right');
         } else {
           previousRightLandmarks = null;
         }
 
-        // Handle controls based on gestures
-        handleControls(leftGestures, rightGestures);
-
-        // Draw viewport zones for WASD controls
-        drawViewportZones(p);
+        // Temporarily disable controls for ETH-3D overlay
+        // handleControls(leftGestures, rightGestures);
+        // drawViewportZones(p);
 
         frameCount++;
       };
@@ -305,12 +298,12 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
         for (const [start, end] of connections) {
           if (landmarks[start] && landmarks[end]) {
             // Draw vectors at CONSTANT depth - never changes regardless of hand movement
-            // Direct mapping (no mirroring) - left hand moves left, right hand moves right
-            const x1 = p.map(landmarks[start].x, 0, 1, -p.width/2, p.width/2);
+            // Mirror mapping for correct hand positioning
+            const x1 = p.map(landmarks[start].x, 0, 1, p.width/2, -p.width/2);
             const y1 = p.map(landmarks[start].y, 0, 1, -p.height/2, p.height/2);
             const z1 = 0; // CONSTANT depth at resting position (point zero)
             
-            const x2 = p.map(landmarks[end].x, 0, 1, -p.width/2, p.width/2);
+            const x2 = p.map(landmarks[end].x, 0, 1, p.width/2, -p.width/2);
             const y2 = p.map(landmarks[end].y, 0, 1, -p.height/2, p.height/2);
             const z2 = 0; // CONSTANT depth at resting position (point zero)
 
@@ -324,8 +317,8 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
           const landmark = landmarks[i];
           if (!landmark) continue;
 
-          // Direct mapping (no mirroring) - natural hand movement
-          const x = p.map(landmark.x, 0, 1, -p.width/2, p.width/2);
+          // Mirror mapping for correct hand positioning
+          const x = p.map(landmark.x, 0, 1, p.width/2, -p.width/2);
           const y = p.map(landmark.y, 0, 1, -p.height/2, p.height/2);
           const z = clampedDepthFactor; // Dots move with depth offset from resting position
 
@@ -650,248 +643,18 @@ export default function StableHandRenderer({ leftHand, rightHand }: StableHandRe
   };
 
   return (
-    <div style={{ position: 'relative' }}>
-      <div ref={canvasRef} />
+    <div style={{ 
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100vw',
+      height: '100vh',
+      zIndex: 100,
+      pointerEvents: 'none' // Allow clicks to pass through to underlying elements
+    }}>
+      <div ref={canvasRef} style={{ width: '100%', height: '100%' }} />
       
-      {/* Interactive Controls */}
-      <div style={{
-        position: 'absolute',
-        top: '10px',
-        right: '10px',
-        background: 'rgba(0, 0, 0, 0.8)',
-        color: 'white',
-        padding: '15px',
-        borderRadius: '8px',
-        fontSize: '12px',
-        zIndex: 1000,
-        minWidth: '200px'
-      }}>
-        <div style={{ marginBottom: '10px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>📏 Depth & Reach Controls</span>
-          <button
-            onClick={() => setShowControls(!showControls)}
-            style={{
-              background: '#666',
-              color: 'white',
-              border: 'none',
-              borderRadius: '3px',
-              padding: '2px 6px',
-              cursor: 'pointer',
-              fontSize: '10px'
-            }}
-          >
-            {showControls ? 'Hide' : 'Show'}
-          </button>
-        </div>
-        
-        {showControls && (
-          <>
-            {/* Resting Position Calibration */}
-            <div style={{ marginBottom: '8px' }}>
-              <div style={{ fontSize: '11px', marginBottom: '5px', color: '#ccc' }}>Resting Position</div>
-              <div style={{ fontSize: '10px', marginBottom: '5px', color: '#aaa' }}>
-                Current: {restingDepth.toFixed(3)}
-              </div>
-              <div style={{ display: 'flex', gap: '3px', marginBottom: '5px' }}>
-                <button
-                  onClick={calibrateRestingPosition}
-                  style={{
-                    background: isCalibrating ? '#ff8800' : '#666',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '3px',
-                    padding: '3px 6px',
-                    cursor: 'pointer',
-                    fontSize: '9px',
-                    flex: 1
-                  }}
-                >
-                  {isCalibrating ? 'Calibrating...' : 'Start Cal'}
-                </button>
-                
-                <button
-                  onClick={setRestingPosition}
-                  disabled={!isCalibrating}
-                  style={{
-                    background: isCalibrating ? '#4CAF50' : '#333',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '3px',
-                    padding: '3px 6px',
-                    cursor: isCalibrating ? 'pointer' : 'not-allowed',
-                    fontSize: '9px',
-                    flex: 1
-                  }}
-                >
-                  Set Position
-                </button>
-              </div>
-              
-              <button
-                onClick={resetRestingPosition}
-                style={{
-                  background: '#ff4444',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '3px',
-                  padding: '3px 6px',
-                  cursor: 'pointer',
-                  fontSize: '9px',
-                  width: '100%'
-                }}
-              >
-                Reset Position
-              </button>
-            </div>
-            
-            {/* Control Options */}
-            <div style={{ marginBottom: '8px', padding: '8px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '5px' }}>
-              <div style={{ fontSize: '11px', marginBottom: '5px', color: '#FFD700', fontWeight: 'bold' }}>
-                🎮 Control Options
-              </div>
-              
-              <label style={{ display: 'block', marginBottom: '5px', fontSize: '10px' }}>
-                <input
-                  type="checkbox"
-                  checked={enableWASDControls}
-                  onChange={(e) => setEnableWASDControls(e.target.checked)}
-                  style={{ marginRight: '5px' }}
-                />
-                Enable WASD Controls
-              </label>
-              
-              <label style={{ display: 'block', marginBottom: '5px', fontSize: '10px' }}>
-                <input
-                  type="checkbox"
-                  checked={enableClicking}
-                  onChange={(e) => setEnableClicking(e.target.checked)}
-                  style={{ marginRight: '5px' }}
-                />
-                Enable Thumb Clicking
-              </label>
-            </div>
-
-            {/* Viewport Zone Controls */}
-            <div style={{ marginBottom: '8px', padding: '8px', background: 'rgba(0, 150, 255, 0.1)', borderRadius: '5px' }}>
-              <div style={{ fontSize: '11px', marginBottom: '5px', color: '#0096FF', fontWeight: 'bold' }}>
-                🎯 Viewport Zones
-              </div>
-              
-              <div style={{ marginBottom: '5px' }}>
-                <label style={{ fontSize: '10px', color: '#ccc', display: 'block' }}>
-                  Left Zone (A): {viewportZones.leftZone.toFixed(2)}
-                </label>
-                <input
-                  type="range"
-                  min="0.1"
-                  max="0.5"
-                  step="0.05"
-                  value={viewportZones.leftZone}
-                  onChange={(e) => setViewportZones(prev => ({ ...prev, leftZone: parseFloat(e.target.value) }))}
-                  style={{ width: '100%' }}
-                  aria-label="Left zone threshold"
-                />
-              </div>
-              
-              <div style={{ marginBottom: '5px' }}>
-                <label style={{ fontSize: '10px', color: '#ccc', display: 'block' }}>
-                  Right Zone (D): {viewportZones.rightZone.toFixed(2)}
-                </label>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="0.9"
-                  step="0.05"
-                  value={viewportZones.rightZone}
-                  onChange={(e) => setViewportZones(prev => ({ ...prev, rightZone: parseFloat(e.target.value) }))}
-                  style={{ width: '100%' }}
-                  aria-label="Right zone threshold"
-                />
-              </div>
-              
-              <div style={{ marginBottom: '5px' }}>
-                <label style={{ fontSize: '10px', color: '#ccc', display: 'block' }}>
-                  Top Zone (W): {viewportZones.topZone.toFixed(2)}
-                </label>
-                <input
-                  type="range"
-                  min="0.1"
-                  max="0.5"
-                  step="0.05"
-                  value={viewportZones.topZone}
-                  onChange={(e) => setViewportZones(prev => ({ ...prev, topZone: parseFloat(e.target.value) }))}
-                  style={{ width: '100%' }}
-                  aria-label="Top zone threshold"
-                />
-              </div>
-              
-              <div style={{ marginBottom: '5px' }}>
-                <label style={{ fontSize: '10px', color: '#ccc', display: 'block' }}>
-                  Bottom Zone (S): {viewportZones.bottomZone.toFixed(2)}
-                </label>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="0.9"
-                  step="0.05"
-                  value={viewportZones.bottomZone}
-                  onChange={(e) => setViewportZones(prev => ({ ...prev, bottomZone: parseFloat(e.target.value) }))}
-                  style={{ width: '100%' }}
-                  aria-label="Bottom zone threshold"
-                />
-              </div>
-            </div>
-
-            {/* Control Logs */}
-            <div style={{ marginBottom: '8px', padding: '8px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '5px', maxHeight: '120px', overflowY: 'auto' }}>
-              <div style={{ fontSize: '11px', marginBottom: '5px', color: '#4CAF50', fontWeight: 'bold' }}>
-                📝 Control Logs
-              </div>
-              <div style={{ fontSize: '9px', lineHeight: '1.2' }}>
-                {controlLogs.map((log, index) => (
-                  <div key={index} style={{ color: '#ccc', marginBottom: '2px' }}>
-                    {log}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '5px' }}>
-              <button
-                onClick={saveCalibration}
-                style={{
-                  background: '#4CAF50',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '3px',
-                  padding: '4px 8px',
-                  cursor: 'pointer',
-                  fontSize: '10px',
-                  flex: 1
-                }}
-              >
-                Save
-              </button>
-              
-              <button
-                onClick={loadCalibration}
-                style={{
-                  background: '#2196F3',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '3px',
-                  padding: '4px 8px',
-                  cursor: 'pointer',
-                  fontSize: '10px',
-                  flex: 1
-                }}
-              >
-                Load
-              </button>
-            </div>
-          </>
-        )}
-      </div>
+      {/* Controls hidden for ETH-3D overlay */}
     </div>
   );
 } 
