@@ -23,6 +23,14 @@ interface GestureState {
   rightWristPosition: THREE.Vector3 | null;
 }
 
+interface Diamond {
+  id: string;
+  group: THREE.Group;
+  position: THREE.Vector3;
+  isSelected: boolean;
+  createdAt: number;
+}
+
 export default function Eth3DLogo({ multiHandData }: Eth3DLogoProps) {
 
   
@@ -32,6 +40,12 @@ export default function Eth3DLogo({ multiHandData }: Eth3DLogoProps) {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const logoGroupRef = useRef<THREE.Group | null>(null);
   const animationIdRef = useRef<number | null>(null);
+  
+  // Diamond management
+  const diamondsRef = useRef<Diamond[]>([]);
+  const ethModelRef = useRef<THREE.Group | null>(null);
+  const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster());
+  const mouseRef = useRef<THREE.Vector2>(new THREE.Vector2());
   
   // Mouse and gesture controls
   const isMouseDownRef = useRef(false);
@@ -61,6 +75,7 @@ export default function Eth3DLogo({ multiHandData }: Eth3DLogoProps) {
   // Depth configuration for hand projection
   const [restingDepth, setRestingDepth] = useState(0.1);
   const [depthSensitivity, setDepthSensitivity] = useState(200.0);
+  const [diamondCount, setDiamondCount] = useState(0);
   
   // Use ref to store latest multiHandData for animation loop
   const multiHandDataRef = useRef<MultiHandData>(multiHandData);
@@ -85,6 +100,75 @@ export default function Eth3DLogo({ multiHandData }: Eth3DLogoProps) {
     }
   }, [multiHandData]);
 
+  // Create a new diamond
+  const createDiamond = (position: THREE.Vector3) => {
+    if (!ethModelRef.current) return;
+    
+    const diamondId = `diamond-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Clone the ETH model for the new diamond
+    const newDiamondGroup = ethModelRef.current.clone();
+    newDiamondGroup.position.copy(position);
+    newDiamondGroup.scale.setScalar(0.8); // Slightly smaller than original
+    
+    // Add some random rotation for variety
+    newDiamondGroup.rotation.set(
+      Math.random() * Math.PI * 2,
+      Math.random() * Math.PI * 2,
+      Math.random() * Math.PI * 2
+    );
+    
+    const diamond: Diamond = {
+      id: diamondId,
+      group: newDiamondGroup,
+      position: position.clone(),
+      isSelected: false,
+      createdAt: Date.now()
+    };
+    
+    diamondsRef.current.push(diamond);
+    setDiamondCount(diamondsRef.current.length);
+    
+    if (sceneRef.current) {
+      sceneRef.current.add(newDiamondGroup);
+    }
+    
+    console.log('💎 Created new diamond:', diamondId, 'at position:', position);
+    return diamond;
+  };
+  
+  // Delete a diamond
+  const deleteDiamond = (diamondId: string) => {
+    const diamondIndex = diamondsRef.current.findIndex(d => d.id === diamondId);
+    if (diamondIndex === -1) return;
+    
+    const diamond = diamondsRef.current[diamondIndex];
+    
+    // Remove from scene
+    if (sceneRef.current) {
+      sceneRef.current.remove(diamond.group);
+    }
+    
+    // Remove from array
+    diamondsRef.current.splice(diamondIndex, 1);
+    setDiamondCount(diamondsRef.current.length);
+    
+    console.log('🗑️ Deleted diamond:', diamondId);
+  };
+  
+  // Check if hand is over a diamond (for deletion)
+  const checkDiamondIntersection = (handPosition: THREE.Vector3) => {
+    const threshold = 0.5; // Distance threshold for selection
+    
+    for (const diamond of diamondsRef.current) {
+      const distance = handPosition.distanceTo(diamond.position);
+      if (distance < threshold) {
+        return diamond;
+      }
+    }
+    return null;
+  };
+  
   // Load ETH GLB model
   const loadETHModel = () => {
     return new Promise<THREE.Group>((resolve, reject) => {
@@ -95,6 +179,9 @@ export default function Eth3DLogo({ multiHandData }: Eth3DLogoProps) {
         (gltf) => {
           console.log('✅ ETH GLB loaded successfully:', gltf);
           const model = gltf.scene;
+          
+          // Store reference to the model for cloning
+          ethModelRef.current = model;
           
           // Scale and position the model appropriately
           model.scale.setScalar(1.0);
@@ -477,6 +564,79 @@ export default function Eth3DLogo({ multiHandData }: Eth3DLogoProps) {
     } else {
       newGestureState.rightPinchPoint = null;
       newGestureState.rightWristPosition = null;
+    }
+    
+    // Handle diamond creation and deletion
+    // Only allow diamond creation with one hand at a time
+    if (currentMultiHandData.totalHands === 1) {
+      let activeHand = currentMultiHandData.leftHand || currentMultiHandData.rightHand;
+      let handPosition = new THREE.Vector3();
+      
+      if (activeHand) {
+        const fingerTips = [
+          activeHand.landmarks[8],  // Index
+          activeHand.landmarks[12], // Middle
+          activeHand.landmarks[16], // Ring
+          activeHand.landmarks[20]  // Pinky
+        ];
+        const fingerMCPs = [
+          activeHand.landmarks[5],  // Index MCP
+          activeHand.landmarks[9],  // Middle MCP
+          activeHand.landmarks[13], // Ring MCP
+          activeHand.landmarks[17]  // Pinky MCP
+        ];
+        
+        // Count extended fingers
+        let extendedCount = 0;
+        for (let i = 0; i < 4; i++) {
+          const tipY = fingerTips[i].y;
+          const mcpY = fingerMCPs[i].y;
+          if (tipY < mcpY) { // Finger is extended
+            extendedCount++;
+          }
+        }
+        
+        handPosition = new THREE.Vector3(
+          (activeHand.landmarks[0].x - 0.5) * 20,
+          -(activeHand.landmarks[0].y - 0.5) * 20,
+          (activeHand.landmarks[0].z - 0.5) * 10
+        );
+        
+        // 2 fingers extended - create diamonds continuously
+        if (extendedCount === 2) {
+          createDiamond(handPosition);
+          console.log('✌️ 2 FINGERS - Creating diamond continuously');
+        }
+        
+        // 3 fingers extended - create only one diamond at a time
+        if (extendedCount === 3) {
+          // Use a ref to track if we've already created a diamond for this 3-finger gesture
+          if (!gestureState.isSelecting) {
+            createDiamond(handPosition);
+            console.log('🖐️ 3 FINGERS - Creating single diamond');
+            newGestureState.isSelecting = true;
+          }
+        } else {
+          // Reset the flag when not doing 3-finger gesture
+          newGestureState.isSelecting = false;
+        }
+      }
+    } else {
+      // Reset selection flag when multiple hands or no hands
+      newGestureState.isSelecting = false;
+    }
+    
+    // Handle diamond deletion with fist
+    if (hasLeftFist || hasRightFist) {
+      const fistPosition = hasLeftFist ?
+        new THREE.Vector3((leftFistX - 0.5) * 20, -(leftFistY - 0.5) * 20, (leftFistZ - 0.5) * 10) :
+        new THREE.Vector3((rightFistX - 0.5) * 20, -(rightFistY - 0.5) * 20, (rightFistZ - 0.5) * 10);
+      
+      const diamondToDelete = checkDiamondIntersection(fistPosition);
+      if (diamondToDelete) {
+        deleteDiamond(diamondToDelete.id);
+        console.log('🗑️ Diamond deleted with fist gesture');
+      }
     }
     
     // PINCH-ONLY GESTURE DETECTION - NO MOVEMENT WITHOUT PINCHING
@@ -872,6 +1032,92 @@ export default function Eth3DLogo({ multiHandData }: Eth3DLogoProps) {
         left: 0,
         zIndex: 2
       }} 
-    />
+    >
+      {/* Diamond Controls UI */}
+      <div style={{
+        position: 'absolute',
+        top: '20px',
+        right: '20px',
+        zIndex: 10,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px'
+      }}>
+        <button
+          onClick={() => {
+            const randomPosition = new THREE.Vector3(
+              (Math.random() - 0.5) * 10,
+              (Math.random() - 0.5) * 10,
+              (Math.random() - 0.5) * 5
+            );
+            createDiamond(randomPosition);
+          }}
+          style={{
+            padding: '12px 16px',
+            background: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = '#45a049';
+            e.currentTarget.style.transform = 'translateY(-2px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = '#4CAF50';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+        >
+          💎 Create Diamond
+        </button>
+        
+        <button
+          onClick={() => {
+            diamondsRef.current.forEach(diamond => deleteDiamond(diamond.id));
+          }}
+          style={{
+            padding: '12px 16px',
+            background: '#f44336',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = '#d32f2f';
+            e.currentTarget.style.transform = 'translateY(-2px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = '#f44336';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+        >
+          🗑️ Clear All
+        </button>
+        
+        <div style={{
+          background: 'rgba(0,0,0,0.7)',
+          color: 'white',
+          padding: '8px 12px',
+          borderRadius: '6px',
+          fontSize: '12px',
+          textAlign: 'center'
+        }}>
+          <div>✌️ 2 fingers = continuous</div>
+          <div>🖐️ 3 fingers = single</div>
+          <div>👊 Fist to delete</div>
+          <div>💎 Count: {diamondCount}</div>
+        </div>
+      </div>
+    </div>
   );
 } 
