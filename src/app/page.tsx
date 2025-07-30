@@ -236,11 +236,28 @@ export default function Home() {
     try {
       console.log('Starting camera request...');
       
+      // Check if we're on HTTPS (required for camera access)
+      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+        console.warn('⚠️ Camera access requires HTTPS (except on localhost)');
+        setCameraStatus({
+          status: 'error',
+          message: 'Camera: HTTPS required for camera access'
+        });
+        return;
+      }
+      
       // Check if MediaPipe is loaded
       if (!(window as any).Hands) {
         throw new Error('MediaPipe Hands not loaded. Please refresh the page and try again.');
       }
 
+      // Check if getUserMedia is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('getUserMedia not supported in this browser');
+      }
+
+      console.log('Requesting camera access...');
+      
       // Request camera access with simpler constraints first
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
