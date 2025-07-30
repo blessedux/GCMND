@@ -246,6 +246,12 @@ export default function Home() {
         return;
       }
       
+      console.log('✅ Protocol check passed:', {
+        protocol: window.location.protocol,
+        hostname: window.location.hostname,
+        url: window.location.href
+      });
+      
       // Check if MediaPipe is loaded
       if (!(window as any).Hands) {
         throw new Error('MediaPipe Hands not loaded. Please refresh the page and try again.');
@@ -257,17 +263,39 @@ export default function Home() {
       }
 
       console.log('Requesting camera access...');
-      
-      // Request camera access with simpler constraints first
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      console.log('📹 getUserMedia constraints:', { 
         video: { 
           width: { ideal: 640 },
           height: { ideal: 480 },
           facingMode: 'user'
         } 
       });
+      
+      // Request camera access with simpler constraints first
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: 'user'
+          } 
+        });
+      } catch (error) {
+        console.warn('First camera request failed, trying with minimal constraints:', error);
+        // Try with minimal constraints
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: true 
+        });
+      }
 
-      console.log('Camera stream obtained:', stream);
+      console.log('✅ Camera stream obtained:', stream);
+      console.log('📹 Stream tracks:', stream.getTracks().map(track => ({
+        kind: track.kind,
+        label: track.label,
+        enabled: track.enabled,
+        readyState: track.readyState
+      })));
 
       // Set up video element
       if (videoRef.current) {

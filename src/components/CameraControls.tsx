@@ -52,34 +52,49 @@ export default function CameraControls({ onCameraRequest, cameraStatus }: Camera
         {cameraStatus.message}
       </div>
       
-      {cameraStatus.status === 'waiting' && (
-        <button
-          style={{
-            padding: '12px 24px',
-            background: '#4CAF50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-            transition: 'all 0.3s ease'
-          }}
-          onClick={handleCameraRequest}
-          disabled={isRequesting}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#45a049';
-            e.currentTarget.style.transform = 'translateY(-2px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#4CAF50';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          {isRequesting ? 'Requesting...' : '🎥 Start Hand Tracking'}
-        </button>
-      )}
+      {/* Always show camera button for debugging */}
+      <button
+        style={{
+          padding: '12px 24px',
+          background: cameraStatus.status === 'waiting' ? '#4CAF50' : '#2196F3',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          fontSize: '16px',
+          fontWeight: 'bold',
+          boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+          transition: 'all 0.3s ease',
+          marginBottom: '10px'
+        }}
+        onClick={handleCameraRequest}
+        disabled={isRequesting}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = cameraStatus.status === 'waiting' ? '#45a049' : '#1976D2';
+          e.currentTarget.style.transform = 'translateY(-2px)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = cameraStatus.status === 'waiting' ? '#4CAF50' : '#2196F3';
+          e.currentTarget.style.transform = 'translateY(0)';
+        }}
+      >
+        {isRequesting ? 'Requesting...' : cameraStatus.status === 'waiting' ? '🎥 Start Hand Tracking' : '🔄 Retry Camera'}
+      </button>
+      
+      {/* Debug info */}
+      <div style={{ 
+        color: '#90EE90', 
+        marginBottom: '10px', 
+        fontSize: '10px', 
+        opacity: 0.7,
+        background: 'rgba(144, 238, 144, 0.1)',
+        padding: '5px',
+        borderRadius: '3px'
+      }}>
+        <strong>Debug:</strong> Protocol: {typeof window !== 'undefined' ? window.location.protocol : 'N/A'} | 
+        Host: {typeof window !== 'undefined' ? window.location.hostname : 'N/A'} | 
+        Port: {typeof window !== 'undefined' ? window.location.port : 'N/A'}
+      </div>
       
       {cameraStatus.status === 'error' && cameraStatus.error && (
         <div style={{ 
