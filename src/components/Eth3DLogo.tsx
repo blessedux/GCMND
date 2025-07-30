@@ -626,17 +626,12 @@ export default function Eth3DLogo({ multiHandData }: Eth3DLogoProps) {
       newGestureState.isSelecting = false;
     }
     
-    // Handle diamond deletion with fist
+    // Handle diamond deletion with fist - clear all diamonds
     if (hasLeftFist || hasRightFist) {
-      const fistPosition = hasLeftFist ?
-        new THREE.Vector3((leftFistX - 0.5) * 20, -(leftFistY - 0.5) * 20, (leftFistZ - 0.5) * 10) :
-        new THREE.Vector3((rightFistX - 0.5) * 20, -(rightFistY - 0.5) * 20, (rightFistZ - 0.5) * 10);
-      
-      const diamondToDelete = checkDiamondIntersection(fistPosition);
-      if (diamondToDelete) {
-        deleteDiamond(diamondToDelete.id);
-        console.log('🗑️ Diamond deleted with fist gesture');
-      }
+      // Clear all diamonds when fist is detected
+      const diamondsToDelete = [...diamondsRef.current];
+      diamondsToDelete.forEach(diamond => deleteDiamond(diamond.id));
+      console.log('👊 FIST DETECTED - Clearing all diamonds');
     }
     
     // PINCH-ONLY GESTURE DETECTION - NO MOVEMENT WITHOUT PINCHING
@@ -1114,7 +1109,7 @@ export default function Eth3DLogo({ multiHandData }: Eth3DLogoProps) {
         }}>
           <div>✌️ 2 fingers = continuous</div>
           <div>🖐️ 3 fingers = single</div>
-          <div>👊 Fist to delete</div>
+          <div>👊 Fist = clear all</div>
           <div>💎 Count: {diamondCount}</div>
         </div>
       </div>
